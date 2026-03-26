@@ -55,7 +55,7 @@ function allocatePaymentBreakdown(paymentBreakdown, orderTotal, totalOfAllOrders
   return Object.keys(allocated).length > 0 ? { amounts: allocated } : null;
 }
 
-export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, onStatusChange, onCreateOrder, onRemoveAllOrders, tables, showSubtotalView = false, subtotalBreaks = [], onPaymentCompleted, selectedTable = null, currentUser = null, currentTime = '', onOpenTables, quantityInput = '', setQuantityInput, showInWaitingButton = false, showInPlanningButton = true, onOpenInPlanning, onOpenInWaiting, onSaveInWaitingAndReset, focusedOrderId = null, focusedOrderInitialItemCount = 0 }) {
+export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, onStatusChange, onCreateOrder, onRemoveAllOrders, tables, showSubtotalView = false, subtotalBreaks = [], onPaymentCompleted, selectedTable = null, currentUser = null, currentTime = '', onOpenTables, quantityInput = '', setQuantityInput, showInWaitingButton = false, showInPlanningButton = true, onOpenInPlanning, onOpenInWaiting, onSaveInWaitingAndReset, onGoToInPlanningProcessing = null, focusedOrderId = null, focusedOrderInitialItemCount = 0 }) {
   const { t } = useLanguage();
   const tr = (key, fallback) => {
     const translated = t(key);
@@ -266,7 +266,9 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
   };
   const { boundaries: batchBoundaries, meta: batchMeta } = isViewedFromInWaiting ? parseBatchData() : { boundaries: [], meta: [] };
   const lastSavedBoundary = batchBoundaries.length > 0 ? batchBoundaries[batchBoundaries.length - 1] : 0;
-  const inWaitingButtonDisabled = isViewedFromInWaiting && (order?.items?.length ?? 0) <= lastSavedBoundary;
+  const isInPlanningOrder = order?.status === 'in_planning';
+  const inWaitingButtonDisabled = isInPlanningOrder || (isViewedFromInWaiting && (order?.items?.length ?? 0) <= lastSavedBoundary);
+  const inPlanningButtonDisabled = isInPlanningOrder || !order?.id || !hasOrderItems || (!hasSelectedTable && !isViewedFromInWaiting);
   const normalizeSavedTableOrders = (list) => {
     if (!Array.isArray(list)) return [];
     const byOrderId = new Map();
@@ -1354,10 +1356,10 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
           </Pressable>
           {showInPlanningButton ? (
             <Pressable
-              disabled={!order?.id || !hasOrderItems || (!hasSelectedTable && !isViewedFromInWaiting)}
-              className={`min-w-0 flex-1 items-center justify-center rounded-md border-none py-2 ${order?.id && hasOrderItems && (hasSelectedTable || isViewedFromInWaiting) ? 'bg-pos-surface text-pos-text active:bg-green-500' : 'bg-pos-surface text-gray-400 cursor-not-allowed opacity-70'}`}
+              disabled={inPlanningButtonDisabled}
+              className={`min-w-0 flex-1 items-center justify-center rounded-md border-none py-2 ${!inPlanningButtonDisabled ? 'bg-pos-surface text-pos-text active:bg-green-500' : 'bg-pos-surface text-gray-400 cursor-not-allowed opacity-70'}`}
               onPress={() => {
-                if (!order?.id || !hasOrderItems) return;
+                if (inPlanningButtonDisabled) return;
                 if (isViewedFromInWaiting) {
                   setShowPayNowOrLaterModal(true);
                 } else {
@@ -1896,14 +1898,14 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
       </Modal>
 
       <Modal visible={showPayNowOrLaterModal} transparent animationType="fade" onRequestClose={() => setShowPayNowOrLaterModal(false)}>
-        <View className="flex-1 items-center justify-center bg-black/50">
+        <View className="flex-1 items-center justify-center px-5 bg-black/50">
           <View
             className="bg-pos-panel rounded-lg shadow-xl px-16 py-8 max-w-2xl w-full mx-4 border border-pos-border"
           >
             <Text id="pay-now-or-later-title" className="text-2xl mb-10 font-semibold flex justify-center w-full text-pos-text">
               {t('payNowOrLater')}
             </Text>
-            <View className="flex gap-4 justify-center">
+            <View className="flex flex-row gap-10 justify-center">
               <Pressable
                 className="flex-1 py-3 px-10 bg-pos-surface text-pos-text rounded text-xl active:bg-green-500"
                 onPress={() => {
@@ -1944,7 +1946,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
           } else if (inPlanningCalendarAction === 'inPlanning') {
             setInPlanningCalendarAction(null);
             order?.id && onStatusChange?.(order.id, 'in_planning');
-            onOpenInPlanning?.();
+            onGoToInPlanningProcessing?.();
           }
         }}
       />

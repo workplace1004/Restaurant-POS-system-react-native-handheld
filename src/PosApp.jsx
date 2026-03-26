@@ -574,6 +574,14 @@ export default function PosApp() {
               setShowInPlanningModal(true);
               fetchOrders();
             }}
+            onGoToInPlanningProcessing={async () => {
+              setFocusedOrderId(null);
+              setFocusedOrderInitialItemCount(0);
+              await createOrder(null);
+              setProcessingSubTab('in_planning');
+              setMobileTab('processing');
+              fetchOrders();
+            }}
             onOpenInWaiting={() => {
               setShowInWaitingModal(true);
               fetchOrders();
@@ -616,9 +624,13 @@ export default function PosApp() {
               {activeProcessingOrders.map((order) => (
                 <Pressable
                   key={`proc-${processingSubTab}-${order.id}`}
-                  className={`mb-2 rounded-md p-3 ${processingSubTab === 'in_waiting' && selectedProcessingOrderId === order.id ? 'bg-green-500' : 'bg-pos-panel'}`}
+                  className={`mb-2 rounded-md p-3 ${
+                    (processingSubTab === 'in_waiting' || processingSubTab === 'in_planning') && selectedProcessingOrderId === order.id
+                      ? 'bg-green-500'
+                      : 'bg-pos-panel'
+                  }`}
                   onPress={() => {
-                    if (processingSubTab === 'in_waiting') {
+                    if (processingSubTab === 'in_waiting' || processingSubTab === 'in_planning') {
                       setSelectedProcessingOrderId((prev) => (prev === order.id ? null : order.id));
                     }
                   }}
@@ -628,7 +640,7 @@ export default function PosApp() {
                       <Text className="text-pos-text font-semibold">#{order.id}</Text>
                       <Text
                         className={`text-xs mt-1 ${
-                          processingSubTab === 'in_waiting' && selectedProcessingOrderId === order.id
+                          (processingSubTab === 'in_waiting' || processingSubTab === 'in_planning') && selectedProcessingOrderId === order.id
                             ? 'text-white'
                             : 'text-pos-muted'
                         }`}
@@ -636,7 +648,7 @@ export default function PosApp() {
                         {order.status}
                       </Text>
                     </View>
-                    {processingSubTab === 'in_waiting' && selectedProcessingOrderId === order.id ? (
+                    {(processingSubTab === 'in_waiting' || processingSubTab === 'in_planning') && selectedProcessingOrderId === order.id ? (
                       <Pressable
                         className="ml-2 mt-1 h-8 w-8 items-center justify-center rounded-full bg-pos-panel/30"
                         onPress={() => {

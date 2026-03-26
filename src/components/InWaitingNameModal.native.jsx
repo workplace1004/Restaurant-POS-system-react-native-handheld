@@ -23,8 +23,6 @@ export function InWaitingNameModal({ open, onClose, onConfirm }) {
           <TextInput
             value={name}
             onChangeText={setName}
-            autoFocus
-            showSoftInputOnFocus
             keyboardType="default"
             returnKeyType="done"
             placeholder={tr('control.enterName', 'Enter name')}
