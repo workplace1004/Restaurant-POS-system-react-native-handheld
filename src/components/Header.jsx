@@ -1,0 +1,141 @@
+import React from 'react';
+import { View, Text, Pressable } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const ICONS = {
+  tables: 'table-chair',
+  weborders: 'cart-outline',
+  'in-wacht': 'clock-outline',
+  'geplande-orders': 'calendar-month-outline',
+  reservaties: 'calendar-month-outline',
+  verkopers: 'account-outline'
+};
+
+export function Header({
+  webordersCount,
+  inPlanningCount,
+  inWaitingCount = 0,
+  onOpenTables,
+  onOpenWeborders,
+  onOpenInPlanning,
+  onOpenInWaiting,
+  selectedTable,
+  selectedTableLabel,
+  selectedRoomName,
+  roomCount = null,
+  functionButtonSlots = []
+}) {
+  const { t } = useLanguage();
+  const renderIcon = (name) => (
+    <MaterialCommunityIcons name={name} size={18} color="#dfe6e9" />
+  );
+  const slots = Array.isArray(functionButtonSlots)
+    ? functionButtonSlots.map((slot) => String(slot || '').trim()).filter(Boolean)
+    : [];
+  /** RN: flex defaults to column; wrap + min-w-% created a 2×2 grid. One horizontal row = flex-row flex-nowrap + equal flex-1. */
+  const navRowClass = 'w-full min-w-0 flex-row flex-nowrap items-stretch gap-1';
+
+  const tablesButtonLabel = (() => {
+    if (selectedTable?.name != null && String(selectedTable.name).trim()) return String(selectedTable.name).trim();
+    return t('noTable');
+  })();
+
+  const hasRoomAndTable =
+    selectedRoomName != null &&
+    selectedTableLabel != null &&
+    String(selectedRoomName).trim() !== '' &&
+    String(selectedTableLabel).trim() !== '';
+  const showRoomNameInHeader = hasRoomAndTable && roomCount != null && roomCount > 1;
+
+  const getButtonConfig = (id) => {
+    switch (id) {
+      case 'tables':
+        return {
+          label: tablesButtonLabel,
+          icon: ICONS.tables,
+          onPress: onOpenTables,
+          isTablesSlot: true
+        };
+      case 'weborders':
+        return {
+          label: t('control.functionButton.weborders'),
+          icon: ICONS.weborders,
+          onPress: onOpenWeborders,
+          isTablesSlot: false
+        };
+      case 'in-wacht':
+        return {
+          label: `${inWaitingCount} ${t('control.functionButton.inWaiting')}`,
+          icon: ICONS['in-wacht'],
+          onPress: onOpenInWaiting || onOpenInPlanning,
+          isTablesSlot: false
+        };
+      case 'geplande-orders':
+        return {
+          label: `${inPlanningCount} ${t('control.functionButton.scheduledOrders')}`,
+          icon: ICONS['geplande-orders'],
+          onPress: onOpenInPlanning,
+          isTablesSlot: false
+        };
+      case 'reservaties':
+        return {
+          label: t('control.functionButton.reservations'),
+          icon: ICONS.reservaties,
+          onPress: null,
+          isTablesSlot: false
+        };
+      case 'verkopers':
+        return {
+          label: t('control.functionButton.sellers'),
+          icon: ICONS.verkopers,
+          onPress: null,
+          isTablesSlot: false
+        };
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <View className="flex-row items-center w-full bg-pos-bg py-2 px-2 shrink-0">
+      <View className={`flex-1 ${navRowClass}`}>
+        {slots.map((slotId, idx) => {
+          const cfg = getButtonConfig(slotId);
+          if (!cfg) return null;
+          const isTablesSlot = cfg.isTablesSlot === true;
+          const showRoomAndTableLines = isTablesSlot && showRoomNameInHeader;
+          return (
+            <Pressable
+              key={`header-slot-${idx}-${slotId}`}
+              onPress={cfg.onPress || undefined}
+              disabled={!cfg.onPress}
+              className={`min-h-[46px] min-w-0 flex-1 flex-row items-center justify-center gap-2 rounded-md bg-pos-panel px-1 ${
+                cfg.onPress ? 'active:bg-green-500' : 'opacity-80'
+              }`}
+            >
+              {showRoomAndTableLines ? (
+                <View className="flex-1 items-center justify-center py-1 min-w-0">
+                  {renderIcon(cfg.icon)}
+                  <Text className="text-pos-text text-sm text-center truncate w-full">{String(selectedRoomName).trim()}</Text>
+                  <View className="h-0.5 bg-white w-[80%] my-0.5" />
+                  <Text className="text-pos-text text-sm text-center truncate w-full">{String(selectedTableLabel).trim()}</Text>
+                </View>
+              ) : (
+                <View className="min-w-0 flex-1 flex-row items-center justify-center gap-1">
+                  {renderIcon(cfg.icon)}
+                  <Text
+                    className={`text-pos-text text-sm text-center ${isTablesSlot ? '' : 'truncate'}`}
+                    numberOfLines={isTablesSlot ? 2 : 1}
+                  >
+                    {cfg.label}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
