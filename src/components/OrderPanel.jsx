@@ -1298,16 +1298,16 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
         showSettlementActions ? (
           <View className="flex flex-row gap-2 py-1 min-h-[59px]">
             <Pressable
-              className="flex-1 py-3 px-2 bg-pos-surface border-none rounded-md text-pos-text active:bg-green-500"
+              className="flex-1 min-h-[59px] items-center justify-center px-2 bg-pos-surface border-none rounded-md text-pos-text active:bg-green-500"
               onPress={() => settlementOrder && onStatusChange?.(settlementOrder.id, 'in_planning')}
             >
-              <Text className="text-pos-text text-center text-[12px]">{t('interimAccount')}</Text>
+              <Text className="text-pos-text text-center text-[12px] leading-tight">{t('interimAccount')}</Text>
             </Pressable>
             <Pressable
-              className="flex-1 py-3 px-2 bg-pos-surface border-none rounded-md text-pos-text active:bg-green-500"
+              className="flex-1 min-h-[59px] items-center justify-center px-2 bg-pos-surface border-none rounded-md text-pos-text active:bg-green-500"
               onPress={() => setShowFinalSettlementModal(true)}
             >
-              <Text className="text-pos-text text-center text-[12px]">{t('finalSettlement')}</Text>
+              <Text className="text-pos-text text-center text-[12px] leading-tight">{t('finalSettlement')}</Text>
             </Pressable>
           </View>
         ) : (
@@ -1626,17 +1626,17 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
             </Text>
             <View className="flex flex-row items-start gap-10">
               <Pressable
-                className="min-w-0 flex-1 h-14 rounded border-none bg-gray-200 text-xl font-semibold text-gray-700 active:bg-green-500"
+                className="min-w-0 flex-1 min-h-[56px] items-center justify-center rounded border-none bg-gray-200 px-2 active:bg-green-500"
                 onPress={() => {
                   setShowFinalSettlementModal(false);
                   openPayDifferentlyModal();
                 }}
               >
-                <Text className="text-center text-xl font-semibold text-gray-700">{t('finalPayment')}</Text>
+                <Text className="text-center text-xl font-semibold leading-tight text-gray-700">{t('finalPayment')}</Text>
               </Pressable>
               <View className="min-w-0 flex-1 flex flex-col gap-6">
                 <Pressable
-                  className="h-14 bg-gray-200 border-none rounded text-xl font-semibold text-gray-700 active:bg-green-500"
+                  className="w-full min-h-[56px] items-center justify-center rounded border-none bg-gray-200 px-2 active:bg-green-500"
                   onPress={() => {
                     setShowFinalSettlementModal(false);
                     setShowSettlementSubtotalModal(true);
@@ -1646,17 +1646,17 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                     setSubtotalSelectedRightIds([]);
                   }}
                 >
-                  <Text className="text-gray-700 text-center text-xl font-semibold">{t('subtotal')}</Text>
+                  <Text className="text-center text-xl font-semibold leading-tight text-gray-700">{t('subtotal')}</Text>
                 </Pressable>
                 <Pressable
-                  className="h-14 bg-gray-200 border-none rounded text-xl font-semibold text-gray-700 active:bg-green-500"
+                  className="w-full min-h-[56px] items-center justify-center rounded border-none bg-gray-200 px-2 active:bg-green-500"
                   onPress={() => setShowFinalSettlementModal(false)}
                 >
-                  <Text className="text-gray-700 text-center text-xl font-semibold">{t('cancel')}</Text>
+                  <Text className="text-center text-xl font-semibold leading-tight text-gray-700">{t('cancel')}</Text>
                 </Pressable>
               </View>
               <Pressable
-                className="min-w-0 flex-1 h-14 rounded border-none bg-gray-200 text-xl font-semibold text-gray-700 active:bg-green-500"
+                className="min-w-0 flex-1 min-h-[56px] items-center justify-center rounded border-none bg-gray-200 px-2 active:bg-green-500"
                 onPress={() => {
                   setShowFinalSettlementModal(false);
                   setShowSettlementSubtotalModal(true);
@@ -1666,7 +1666,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                   setSubtotalSelectedRightIds([]);
                 }}
               >
-                <Text className="text-center text-xl font-semibold text-gray-700">{t('splitBill')}</Text>
+                <Text className="text-center text-xl font-semibold leading-tight text-gray-700">{t('splitBill')}</Text>
               </Pressable>
             </View>
           </View>
@@ -1689,18 +1689,18 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
           <View
             className="bg-pos-panel rounded-xl shadow-2xl w-full max-w-[1400px] h-[86vh] p-4 border border-pos-border flex flex-col"
           >
-            <View id="settlement-subtotal-title" className="flex items-center justify-between text-xl font-semibold text-pos-text px-2 pb-1 border-b border-pos-border">
-              <Text>{selectedTable?.name || t('table')}</Text>
-              <Text>€ {payableTotal.toFixed(2)}</Text>
+            <View id="settlement-subtotal-title" className="flex flex-row items-center justify-between text-xl font-semibold text-pos-text px-2 pb-1 border-b border-pos-border">
+              <Text className="text-white">{selectedTable?.name || t('table')}</Text>
+              <Text className="text-white">€ {payableTotal.toFixed(2)}</Text>
             </View>
 
-            <View className="flex-1 min-h-0 flex gap-5">
-              <View className="flex flex-col h-full w-full">
+            <View className="flex-1 min-h-0 flex-row items-stretch gap-5">
+              <View className="min-w-0 flex-1 flex-col">
                 <View className="flex-1 border border-pos-border overflow-auto bg-pos-bg">
                   {settlementSubtotalLeftLines.map((line) => (
                     <Pressable
                       key={line.id}
-                      className={`w-full text-left px-4 py-2 border-b border-pos-border/40 text-sm text-pos-text flex items-center justify-between ${subtotalSelectedLeftIds.includes(line.id) ? 'bg-pos-surface-hover' : 'active:bg-green-500'
+                      className={`w-full text-left px-4 py-2 border-b border-pos-border/40 flex flex-row items-center justify-between ${subtotalSelectedLeftIds.includes(line.id) ? 'bg-pos-surface-hover' : 'active:bg-green-500'
                         }`}
                       onPress={() => {
                         setSubtotalSelectedLeftIds((prev) =>
@@ -1709,8 +1709,8 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                         setSubtotalSelectedRightIds([]);
                       }}
                     >
-                      <Text>- {line.label}</Text>
-                      <Text>€ {line.amount.toFixed(2)}</Text>
+                      <Text className="text-[12px] text-white">- {line.label}</Text>
+                      <Text className="text-[12px] text-white">€ {line.amount.toFixed(2)}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -1731,7 +1731,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                 </View>
               </View>
 
-              <View className="w-16 flex flex-col items-center justify-between py-16 text-pos-text mb-20">
+              <View className="w-10 shrink-0 flex-col items-center justify-between py-[200px] text-pos-text">
                 <Pressable
                   className="text-6xl leading-none active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed active:bg-green-500"
                   disabled={subtotalSelectedLeftIds.length === 0}
@@ -1749,10 +1749,10 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                     setSubtotalSelectedRightIds([]);
                   }}
                 >
-                  <Text className="text-6xl text-pos-text">→</Text>
+                  <Text className="text-4xl text-white">→</Text>
                 </Pressable>
                 <Pressable
-                  className="text-6xl leading-none active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed active:bg-green-500"
+                  className="text-4xl leading-none active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed active:bg-green-500"
                   disabled={subtotalSelectedRightIds.length === 0}
                   onPress={() => {
                     if (subtotalSelectedRightIds.length === 0) return;
@@ -1768,11 +1768,11 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                     setSubtotalSelectedLeftIds([]);
                   }}
                 >
-                  <Text className="text-6xl text-pos-text">←</Text>
+                  <Text className="text-4xl text-white">←</Text>
                 </Pressable>
               </View>
 
-              <View className="flex flex-col h-full w-full">
+              <View className="min-w-0 flex-1 flex-col">
                 <View className="flex-1 border border-pos-border bg-pos-bg flex flex-col">
                   <ScrollView ref={splitRightPanelScrollRef} className="flex-1" onScroll={(e) => { splitPanelScrollYRef.current = e.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
                     {settlementSubtotalRightGroups.map((group) => (
@@ -1780,16 +1780,16 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                         key={group.id}
                         className={`px-4 py-2 border-b ${group.lines.length > 0 && group.lines.every((line) => subtotalSelectedRightIds.includes(line.id))
                           ? 'border-2 border-rose-500 rounded-md'
-                          : ''
+                          : 'border-gray-400'
                           }`}
                       >
-                        <Text className="text-center text-lg font-semibold text-pos-text">
+                        <Text className="text-center text-md font-semibold text-pos-text">
                           {group.label}
                         </Text>
                         {group.lines.map((line) => (
                           <Pressable
                             key={line.id}
-                            className={`w-full text-left px-2 py-1 text-sm text-pos-text flex items-center justify-between ${subtotalSelectedRightIds.includes(line.id) ? 'bg-pos-surface-hover' : 'active:bg-green-500'
+                            className={`w-full text-left px-2 py-1 flex flex-row items-center justify-between ${subtotalSelectedRightIds.includes(line.id) ? 'bg-pos-surface-hover' : 'active:bg-green-500'
                               }`}
                             onPress={() => {
                               setSubtotalSelectedRightIds((prev) =>
@@ -1798,46 +1798,46 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                               setSubtotalSelectedLeftIds([]);
                             }}
                           >
-                            <Text>- {line.label}</Text>
-                            <Text>€ {line.amount.toFixed(2)}</Text>
+                            <Text className="text-white text-[12px]">- {line.label}</Text>
+                            <Text className="text-white text-[12px]">€ {line.amount.toFixed(2)}</Text>
                           </Pressable>
                         ))}
-                        <Text className="text-center text-md font-semibold text-pos-text">
+                        <Text className="text-center text-md font-semibold text-white">
                           € {group.total.toFixed(2)}
                         </Text>
                       </View>
                     ))}
                   </ScrollView>
-                  <View className="py-1 flex items-center justify-around gap-5">
+                  <View className="py-1 flex flex-row items-center justify-around gap-2">
                     <Pressable
-                      className="w-10 h-10 rounded bg-pos-surface text-pos-text text-xl leading-none active:bg-green-500"
+                      className="w-8 h-8 rounded bg-pos-surface text-pos-text text-xl leading-none active:bg-green-500"
                       onPress={() => scrollSplitRightPanel(-1)}
                       accessibilityLabel={t('scrollUp')}
                     >
-                      <Text className="text-pos-text text-xl">↑</Text>
+                      <Text className="text-pos-text text-center text-lg">↑</Text>
                     </Pressable>
                     <Pressable
-                      className="min-w-[100px] py-2 px-6 rounded bg-pos-surface text-pos-text text-md active:bg-green-500"
+                      className="py-2 px-3 rounded bg-pos-surface text-pos-text active:bg-green-500"
                       onPress={() => {
                         setSubtotalLineGroups([]);
                         setSubtotalSelectedLeftIds([]);
                         setSubtotalSelectedRightIds([]);
                       }}
                     >
-                      <Text className="text-pos-text text-center text-md">{t('again')}</Text>
+                      <Text className="text-pos-text text-center text-[10px]">{t('again')}</Text>
                     </Pressable>
                     <Pressable
-                      className="w-10 h-10 rounded bg-pos-surface text-pos-text text-xl leading-none active:bg-green-500"
+                      className="w-8 h-8 rounded bg-pos-surface text-pos-text text-lg leading-none active:bg-green-500"
                       onPress={() => scrollSplitRightPanel(1)}
                       accessibilityLabel={t('scrollDown')}
                     >
-                      <Text className="text-pos-text text-xl">↓</Text>
+                      <Text className="text-pos-text text-center text-lg">↓</Text>
                     </Pressable>
                   </View>
                 </View>
-                <View className="pt-4 flex items-center justify-center gap-12">
+                <View className="pt-4 flex items-center justify-center gap-2">
                   <Pressable
-                    className="min-w-[100px] py-1 px-6 rounded bg-pos-surface text-pos-text text-md active:bg-green-500"
+                    className="py-1 px-3 rounded w-full bg-pos-surface text-pos-text active:bg-green-500"
                     onPress={() => {
                       setShowSettlementSubtotalModal(false);
                       setSettlementModalType('subtotal');
@@ -1846,13 +1846,13 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                       setSubtotalSelectedRightIds([]);
                     }}
                   >
-                    <Text className="text-pos-text text-center text-md">{t('cancel')}</Text>
+                    <Text className="text-pos-text text-center text-[10px]">{t('cancel')}</Text>
                   </Pressable>
                   {settlementModalType === 'splitBill' ? (
                     <>
                       <Pressable
                         disabled={!hasSplitBillSelection}
-                        className={`min-w-[150px] py-1 px-6 rounded text-md ${!hasSplitBillSelection
+                        className={`py-1 px-3 rounded w-full text-[10px] ${!hasSplitBillSelection
                           ? 'bg-pos-surface text-pos-text opacity-50 cursor-not-allowed'
                           : 'bg-pos-surface text-pos-text active:bg-green-500'
                           }`}
@@ -1867,11 +1867,11 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                           openPayDifferentlyModal(splitSelectedTotal);
                         }}
                       >
-                        <Text className="text-pos-text text-center text-md">{t('checkoutAndReturn')}</Text>
+                        <Text className="text-pos-text text-center text-[10px]">{t('checkoutAndReturn')}</Text>
                       </Pressable>
                       <Pressable
                         disabled={!hasSplitBillSelection}
-                        className={`min-w-[170px] py-1 px-6 rounded text-md ${!hasSplitBillSelection
+                        className={`py-1 px-3 rounded w-full text-[10px] ${!hasSplitBillSelection
                           ? 'bg-pos-surface text-pos-text opacity-50 cursor-not-allowed'
                           : 'bg-pos-surface text-pos-text active:bg-green-500'
                           }`}
@@ -1886,13 +1886,13 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                           openPayDifferentlyModal(splitSelectedTotal);
                         }}
                       >
-                        <Text className="text-pos-text text-center text-md">{t('checkoutAndContinueSplit')}</Text>
+                        <Text className="text-pos-text text-center text-[10px]">{t('checkoutAndContinueSplit')}</Text>
                       </Pressable>
                     </>
                   ) : (
                     <Pressable
                       disabled={settlementSubtotalLeftLines.length > 0}
-                      className={`min-w-[100px] py-1 px-6 rounded text-md ${settlementSubtotalLeftLines.length > 0
+                      className={`min-w-[100px] max-w-[100px] py-1 px-6 rounded text-md ${settlementSubtotalLeftLines.length > 0
                         ? 'bg-pos-surface text-pos-text opacity-50 cursor-not-allowed'
                         : 'bg-pos-surface text-pos-text active:bg-green-500'
                         }`}
@@ -1903,7 +1903,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                         openPayDifferentlyModal();
                       }}
                     >
-                      <Text className="text-pos-text text-center text-md">{t('checkout')}</Text>
+                      <Text className="text-pos-text text-center text-[10px]">{t('checkout')}</Text>
                     </Pressable>
                   )}
                 </View>
