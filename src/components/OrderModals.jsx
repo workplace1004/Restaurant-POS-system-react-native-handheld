@@ -146,7 +146,7 @@ export function InWaitingModalRN({
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Search…"
+            placeholder={t('handheldSearchPlaceholder')}
             placeholderTextColor="#95a5a6"
             className="bg-pos-bg border border-pos-border rounded px-3 py-2 text-pos-text mb-2"
           />
@@ -165,10 +165,10 @@ export function InWaitingModalRN({
           </ScrollView>
           <View className="flex-row flex-wrap gap-2 mt-4">
             <Pressable className="flex-1 py-2 bg-pos-surface rounded" onPress={() => selectedOrderId && onViewOrder?.(selectedOrderId)}>
-              <Text className="text-center text-pos-text">View</Text>
+              <Text className="text-center text-pos-text">{t('handheldView')}</Text>
             </Pressable>
             <Pressable className="flex-1 py-2 bg-pos-surface rounded" onPress={() => selectedOrderId && onPrintOrder?.(selectedOrderId)}>
-              <Text className="text-center text-pos-text">Print</Text>
+              <Text className="text-center text-pos-text">{t('handheldPrint')}</Text>
             </Pressable>
             <Pressable className="flex-1 py-2 bg-pos-danger rounded" onPress={() => selectedOrderId && onDeleteOrder?.(selectedOrderId)}>
               <Text className="text-center text-white">{t('delete')}</Text>
@@ -198,7 +198,7 @@ export function HistoryModalRN({ open, onClose, historyOrders = [], onFetchHisto
             {(historyOrders || []).map((o) => (
               <View key={o.id} className="py-2 border-b border-pos-border">
                 <Text className="text-pos-text">
-                  {o.id?.slice(-8)} — paid €{Number(o.total || 0).toFixed(2)}
+                  {o.id?.slice(-8)} — {t('handheldPaid')} €{Number(o.total || 0).toFixed(2)}
                 </Text>
               </View>
             ))}
@@ -220,7 +220,7 @@ export function CustomersModalRN({ open, onClose }) {
       <View className="flex-1 bg-black/50 justify-center p-6">
         <View className="bg-pos-panel rounded-xl p-6 border border-pos-border">
           <Text className="text-pos-text text-lg mb-4">{t('customers')}</Text>
-          <Text className="text-pos-muted mb-6">Customer management matches the web POS. Use the main terminal for full customer tools.</Text>
+          <Text className="text-pos-muted mb-6">{t('handheldCustomersModalBody')}</Text>
           <Pressable className="py-3 bg-green-600 rounded" onPress={onClose}>
             <Text className="text-center text-white">{t('ok')}</Text>
           </Pressable>

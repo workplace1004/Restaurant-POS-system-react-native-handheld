@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Modal, TextInput, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
+import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../contexts/LanguageContext';
 import { InWaitingNameModal } from './InWaitingNameModal.native';
 import { InPlanningDateTimeModal } from './InPlanningDateTimeModal.native';
@@ -26,6 +27,52 @@ const ticketNote = 'text-[14px] leading-tight text-pos-bg opacity-90';
 const ticketLineRow = 'flex flex-row w-full items-center justify-between';
 const ticketNoteRow = 'flex flex-row w-full items-center justify-between pl-6';
 const TABLE_LAST_PAID_AT_STORAGE_KEY = 'pos.tables.lastPaidAtById';
+
+/** Bundled payment tile images (handheld/assets/image/) */
+const PAYMENT_IMG_CASH = require('../../assets/image/cash.png');
+const PAYMENT_IMG_PAYWORLD = require('../../assets/image/payworld.png');
+
+/** Same artwork as assets/image/card.svg — RN cannot require local SVG without extra Metro config */
+function PaymentCardSvgIcon({ width = 100, height = 66 }) {
+  return (
+    <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={width} height={height} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M2 8.50488H22"
+          stroke="#292D32"
+          strokeWidth={1.5}
+          strokeMiterlimit={10}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M6 16.5049H8"
+          stroke="#292D32"
+          strokeWidth={1.5}
+          strokeMiterlimit={10}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M10.5 16.5049H14.5"
+          stroke="#292D32"
+          strokeWidth={1.5}
+          strokeMiterlimit={10}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M6.44 3.50488H17.55C21.11 3.50488 22 4.38488 22 7.89488V16.1049C22 19.6149 21.11 20.4949 17.56 20.4949H6.44C2.89 20.5049 2 19.6249 2 16.1149V7.89488C2 4.38488 2.89 3.50488 6.44 3.50488Z"
+          stroke="#292D32"
+          strokeWidth={1.5}
+          strokeMiterlimit={10}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </View>
+  );
+}
 
 function sumAmountsByIntegration(methods, amounts, integration) {
   return methods
@@ -55,7 +102,7 @@ function allocatePaymentBreakdown(paymentBreakdown, orderTotal, totalOfAllOrders
   return Object.keys(allocated).length > 0 ? { amounts: allocated } : null;
 }
 
-export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, onStatusChange, onCreateOrder, onRemoveAllOrders, tables, showSubtotalView = false, subtotalBreaks = [], onPaymentCompleted, selectedTable = null, currentUser = null, currentTime = '', onOpenTables, quantityInput = '', setQuantityInput, showInWaitingButton = false, showInPlanningButton = true, onOpenInPlanning, onOpenInWaiting, onSaveInWaitingAndReset, onGoToInPlanningProcessing = null, focusedOrderId = null, focusedOrderInitialItemCount = 0 }) {
+export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, onStatusChange, onCreateOrder, onRemoveAllOrders, tables, showSubtotalView = false, subtotalBreaks = [], onPaymentCompleted, selectedTable = null, currentUser = null, currentTime = '', tableDisplayName = 'No Table', onOpenTables, quantityInput = '', setQuantityInput, showInWaitingButton = false, showInPlanningButton = true, onOpenInPlanning, onOpenInWaiting, onSaveInWaitingAndReset, onGoToInPlanningProcessing = null, focusedOrderId = null, focusedOrderInitialItemCount = 0 }) {
   const { t } = useLanguage();
   const tr = (key, fallback) => {
     const translated = t(key);
@@ -389,18 +436,6 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
   const payModalSplitComplete =
     (payModalTargetTotal <= 0.009 && payModalTotalAssigned <= 0.009) ||
     (payModalTargetTotal > 0.009 && Math.abs(payModalTotalAssigned - payModalTargetTotal) <= 0.009);
-
-  const handlePayModalKeypad = (key) => {
-    if (payModalSplitComplete) return;
-    if (key === 'C') {
-      setPayModalKeypadInput('');
-      return;
-    }
-    setPayModalKeypadInput((prev) => {
-      if (prev === payModalTargetTotal.toFixed(2)) return key;
-      return prev + key;
-    });
-  };
 
   const handlePaymentMethodClick = (method) => {
     if (!method?.id || payModalSplitComplete || payModalWouldExceedTotal) return;
@@ -944,9 +979,12 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
 
   return (
     <View className="flex-1 min-h-0 w-full flex flex-col px-2 py-1 bg-pos-bg">
-      <View className="w-full items-center justify-center py-2">
-        <Text className="text-[18px] font-semibold leading-tight text-pos-text text-center" numberOfLines={1} ellipsizeMode="tail">
+      <View className="w-full flex-row items-center justify-around py-2 px-1">
+        <Text className="text-[18px] font-semibold leading-tight text-pos-text" numberOfLines={1} ellipsizeMode="tail">
           {`${t('total')}: €${payableTotal.toFixed(2)}`}
+        </Text>
+        <Text className="text-[18px] font-semibold leading-tight text-pos-muted" numberOfLines={1} ellipsizeMode="tail">
+          {tableDisplayName}
         </Text>
       </View>
       <View className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-white">
@@ -1350,7 +1388,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
               }
             }}
           >
-            <Text className="text-center text-[12px]" numberOfLines={1} ellipsizeMode="tail">
+            <Text className="text-center text-xl font-medium" numberOfLines={1} ellipsizeMode="tail">
               {tr('orderPanel.inWaiting', 'In waiting')}
             </Text>
           </Pressable>
@@ -1367,7 +1405,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                 }
               }}
             >
-              <Text className="text-center text-[12px]" numberOfLines={1} ellipsizeMode="tail">
+              <Text className="text-center text-xl font-medium" numberOfLines={1} ellipsizeMode="tail">
                 {t('inPlanning')}
               </Text>
             </Pressable>
@@ -1380,14 +1418,14 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
               }`}
             onPress={() => openPayDifferentlyModal()}
           >
-            <Text className="text-center text-[12px] font-semibold text-white" numberOfLines={1} ellipsizeMode="tail">
+            <Text className="text-center text-xl font-semibold text-white" numberOfLines={1} ellipsizeMode="tail">
               {t('payDifferently')}
             </Text>
           </Pressable>
           <Pressable
             className="shrink-0 items-center justify-center rounded-md border-none bg-[#f0961c]/90 px-3 py-2 active:bg-[#c6a97f]"
           >
-            <Text className="text-center text-[12px] px-2 font-semibold text-pos-bg">€</Text>
+            <Text className="text-center text-xl px-2 font-semibold text-pos-bg">€</Text>
           </Pressable>
           </View>
         </View>
@@ -1396,95 +1434,95 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
       <Modal visible={showPayDifferentlyModal} transparent animationType="fade" onRequestClose={handleCancelPayDifferentlyModal}>
         <View className="flex-1 items-center justify-center bg-black/50 p-4">
           <View
-            className="flex flex-col bg-gray-100 rounded-xl shadow-2xl max-w-[1800px] w-full overflow-auto text-gray-800"
+            className="flex flex-col bg-gray-100 rounded-xl shadow-2xl w-full max-h-[92%]"
           >
             {/* Left: Total + payment methods */}
-            <View className="flex items-center justify-center">
-              <View className="p-6 min-w-[56%] w-full h-full flex flex-col">
+            <View className="px-4 pt-4">
+              <View className="w-full flex flex-col">
                 <Text className="text-lg font-semibold mb-3 w-full text-center text-gray-800">
                   {t('total')}: €{payModalTargetTotal.toFixed(2)}
                 </Text>
-                <View className="mb-4 h-full w-full flex flex-row flex-wrap items-start justify-center gap-4">
+                <View className="mb-3 w-full">
                   {paymentMethodsLoading ? (
-                    <View className="w-full py-6 text-center text-sm text-gray-600">
-                      {tr('orderPanel.loadingPaymentMethods', 'Loading payment methods...')}
+                    <View className="w-full py-6">
+                      <Text className="text-center text-sm text-gray-600">
+                        {tr('orderPanel.loadingPaymentMethods', 'Loading payment methods...')}
+                      </Text>
                     </View>
                   ) : activePaymentMethods.length === 0 ? (
-                    <View className="w-full max-w-lg px-4 py-6 text-center text-sm text-amber-900">
-                      {tr(
-                        'orderPanel.noPaymentMethods',
-                        'No active payment methods. Configure them under Control â†’ Payment types.',
-                      )}
+                    <View className="w-full max-w-lg px-4 py-6">
+                      <Text className="text-center text-sm text-amber-900">
+                        {tr(
+                          'orderPanel.noPaymentMethods',
+                          'No active payment methods. Configure them under Control -> Payment types.',
+                        )}
+                      </Text>
                     </View>
                   ) : (
-                    activePaymentMethods.map((m) => {
-                      const amt = Number(paymentAmounts[m.id]) || 0;
-                      const isHighlighted = selectedPayment === m.id || amt > 0;
-                      const integ = m.integration || 'generic';
-                      return (
-                        <View key={m.id} className="mb-1 flex flex-col items-center gap-1.5" style={{ width: '23%' }}>
-                          <Pressable
-                            disabled={payModalSplitComplete || payModalWouldExceedTotal}
-                            onPress={() => handlePaymentMethodClick(m)}
-                            className={`rounded-lg border-2 p-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isHighlighted ? 'bg-green-500 border-green-700' : 'bg-white border-gray-300'
-                              }`}
-                            accessibilityLabel={m.name}
-                          >
-                            {integ === 'manual_cash' ? (
-                              <Text className="flex items-center justify-center w-[105px] h-[70px] text-4xl font-bold text-amber-600 bg-amber-50/80 rounded">€</Text>
-                            ) : integ === 'cashmatic' ? (
-                              <ExpoImage source={{ uri: '/cash.png' }} style={{ width: 105, height: 70 }} contentFit="contain" />
-                            ) : integ === 'payworld' ? (
-                              <ExpoImage source={{ uri: '/payworld.png' }} style={{ width: 105, height: 70 }} contentFit="contain" />
-                            ) : integ === 'generic' ? (
-                              <ExpoImage source={{ uri: '/card.svg' }} style={{ width: 105, height: 70 }} contentFit="contain" />
-                            ) : (
-                              <Text className="flex items-center justify-center w-[105px] min-h-[70px] px-2 py-3 text-base font-semibold text-center text-blue-900 bg-blue-50/80 rounded leading-tight">
-                                {m.name}
-                              </Text>
-                            )}
-                          </Pressable>
-                          <View className="text-sm font-semibold tabular-nums text-center max-w-[140px]" >
-                            <Text className="block text-xs font-normal text-gray-600 mb-0.5 truncate">{m.name}</Text>
-                            <Text>{formatPaymentAmount(amt)}</Text>
-                          </View>
-                        </View>
-                      );
-                    })
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View className="flex flex-row items-start">
+                        {activePaymentMethods.map((m) => {
+                          const amt = Number(paymentAmounts[m.id]) || 0;
+                          const isHighlighted = selectedPayment === m.id || amt > 0;
+                          const integ = m.integration || 'generic';
+                          return (
+                            <View key={m.id} className="mb-1 mr-3 flex flex-col items-center gap-1.5" style={{ width: 118 }}>
+                              <Pressable
+                                disabled={payModalSplitComplete || payModalWouldExceedTotal}
+                                onPress={() => handlePaymentMethodClick(m)}
+                                className={`rounded-lg border-2 p-2 disabled:opacity-50 disabled:cursor-not-allowed ${isHighlighted ? 'bg-green-500 border-green-700' : 'bg-white border-gray-300'
+                                  }`}
+                                accessibilityLabel={m.name}
+                              >
+                                {integ === 'manual_cash' ? (
+                                  <View className="h-[66px] w-[100px] items-center justify-center rounded bg-amber-50/80">
+                                    <Text className="text-5xl font-bold text-amber-600">€</Text>
+                                  </View>
+                                ) : integ === 'cashmatic' ? (
+                                  <View className="h-[66px] w-[100px] items-center justify-center overflow-hidden rounded">
+                                    <ExpoImage source={PAYMENT_IMG_CASH} style={{ width: 100, height: 66 }} contentFit="contain" />
+                                  </View>
+                                ) : integ === 'payworld' ? (
+                                  <View className="h-[66px] w-[100px] items-center justify-center overflow-hidden rounded">
+                                    <ExpoImage source={PAYMENT_IMG_PAYWORLD} style={{ width: 100, height: 66 }} contentFit="contain" />
+                                  </View>
+                                ) : integ === 'generic' ? (
+                                  <View className="h-[66px] w-[100px] items-center justify-center">
+                                    <PaymentCardSvgIcon width={100} height={66} />
+                                  </View>
+                                ) : (
+                                  <Text className="flex items-center justify-center w-[100px] min-h-[66px] px-2 py-3 text-base font-semibold text-center text-blue-900 bg-blue-50/80 rounded leading-tight">
+                                    {m.name}
+                                  </Text>
+                                )}
+                              </Pressable>
+                              <View className="text-sm font-semibold tabular-nums text-center max-w-[118px]" >
+                                <Text className="block text-xs font-normal text-gray-600 mb-0.5 truncate">{m.name}</Text>
+                                <Text>{formatPaymentAmount(amt)}</Text>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
                   )}
                 </View>
               </View>
-              {/* Right: Assigned + input + keypad */}
-              <View className="min-w-[26%] p-6">
-                <Text className="mb-2 text-center text-lg font-semibold">{`${t('assigned')}: €${payModalTotalAssigned.toFixed(2)}`}</Text>
-                <View className="flex justify-center mt-2">
+              {/* Right: Assigned + input */}
+              <View className="w-full pb-2">
+                <View className="flex-row items-center justify-between gap-3 px-1">
+                  <Text className="text-lg font-semibold">{`${t('assigned')}: €${payModalTotalAssigned.toFixed(2)}`}</Text>
                   <TextInput
-                    editable={false}
-                    className="w-[160px] py-2 px-3 bg-gray-200 rounded-lg text-base mb-3 text-gray-800"
+                    editable={!payModalSplitComplete}
+                    className="w-[160px] py-2 px-3 bg-gray-200 rounded-lg text-base text-gray-800"
                     value={payModalKeypadInput}
+                    onChangeText={setPayModalKeypadInput}
+                    keyboardType="decimal-pad"
                     accessibilityLabel={t('amountKeypad')}
                   />
                 </View>
-                <View className="flex gap-2 flex-1 min-h-0 mt-3">
-                  <View className="flex flex-col gap-1.5 flex-1">
-                    {KEYPAD.map((row, ri) => (
-                      <View key={ri} className="flex flex-row gap-1.5">
-                        {row.map((key) => (
-                          <Pressable
-                            key={key}
-                            disabled={payModalSplitComplete}
-                            className={`min-w-0 flex-1 rounded-lg py-4 text-lg font-medium ${payModalSplitComplete ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-800 active:bg-green-500'}`}
-                            onPress={() => handlePayModalKeypad(key)}
-                          >
-                            <Text className="text-center text-lg font-medium text-gray-800">{key}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    ))}
-                  </View>
-                </View>
               </View>
-              <View className="min-w-[18%] flex flex-col items-center justify-center gap-4 p-6">
+              <View className="w-full flex flex-col items-center justify-center gap-3 pb-3">
                 <Pressable
                   disabled={payModalSplitComplete}
                   className={`py-2 px-4 w-full max-w-[200px] rounded-lg text-sm font-medium ${payModalSplitComplete ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-800 active:bg-green-500'}`}
@@ -1507,7 +1545,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                 </Pressable>
               </View>
             </View>
-            <View className="flex justify-around px-6 gap-4 w-full pt-6 pb-6">
+            <View className="flex flex-row justify-between px-6 gap-4 w-full pt-3 pb-5">
               <Pressable
                 className="w-[140px] py-2 px-4 rounded-lg text-sm font-medium bg-gray-300 text-gray-800 active:bg-green-500"
                 onPress={handleCancelPayDifferentlyModal}
@@ -1885,9 +1923,9 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
               {t('paymentSuccessfulTitle')}
             </Text>
             <Text className="text-2xl text-pos-text text-center mb-8">{paymentSuccessMessage}</Text>
-            <View className="flex justify-center">
+            <View className="flex items-center justify-center">
               <Pressable
-                className="w-[200px] py-4 bg-green-600 text-white rounded text-2xl active:bg-green-500"
+                className="w-[150px] py-2 px-6 bg-green-600 text-white rounded text-xl active:bg-green-500"
                 onPress={() => setPaymentSuccessMessage('')}
               >
                 <Text className="text-white text-center text-2xl">{t('ok')}</Text>

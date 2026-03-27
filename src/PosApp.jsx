@@ -76,7 +76,7 @@ function formatPosClock(date = new Date()) {
 }
 
 export default function PosApp() {
-  const { t } = useLanguage();
+  const { t, lang, setLang } = useLanguage();
   const { socketOrigin, apiBase } = useApi();
   const [user, setUser] = useState(loadStoredUser);
   const [view, setView] = useState(loadStoredView);
@@ -114,7 +114,7 @@ export default function PosApp() {
   const [quantityInput, setQuantityInput] = useState('');
   const [showInWaitingButton, setShowInWaitingButton] = useState(false);
   const [mobileTab, setMobileTab] = useState('menu');
-  const [processingSubTab, setProcessingSubTab] = useState('processing');
+  const [processingSubTab, setProcessingSubTab] = useState('in_waiting');
   const [selectedProcessingOrderId, setSelectedProcessingOrderId] = useState(null);
   const [menuStep, setMenuStep] = useState('categories');
   const [menuCategoryId, setMenuCategoryId] = useState(null);
@@ -123,6 +123,11 @@ export default function PosApp() {
   const [menuSelectedOrderItemId, setMenuSelectedOrderItemId] = useState(null);
   const [menuSubproducts, setMenuSubproducts] = useState([]);
   const [selectedMenuSubproductIds, setSelectedMenuSubproductIds] = useState(() => new Set());
+  const [pendingLang, setPendingLang] = useState(lang);
+
+  useEffect(() => {
+    if (mobileTab === 'settings') setPendingLang(lang);
+  }, [mobileTab, lang]);
 
   const setViewAndPersist = useCallback((nextView) => {
     setView(nextView);
@@ -140,7 +145,6 @@ export default function PosApp() {
     setSelectedCategoryId,
     currentOrder,
     orders,
-    webordersCount,
     fetchInWaitingCount,
     tables,
     addItemToOrder,
@@ -181,9 +185,6 @@ export default function PosApp() {
       setRoomCount(null);
     }
   }, []);
-
-  const inPlanningCountDisplay = (orders || []).filter((o) => o?.status === 'in_planning').length;
-  const inWaitingCountDisplay = (orders || []).filter((o) => o?.status === 'in_waiting').length;
 
   useEffect(() => {
     const id = setInterval(() => setTime(formatPosClock()), 1000);
@@ -390,33 +391,51 @@ export default function PosApp() {
     });
   }, [appendSubproductNoteToItem, menuSelectedOrderItemId]);
 
-  const processingOrders = (orders || []).filter((o) => o?.status === 'in_planning' || o?.status === 'in_waiting');
+  const menuSubproductsByGroup = useMemo(() => {
+    if (!menuSubproducts.length) return [];
+    const byGroup = new Map();
+    for (const sp of menuSubproducts) {
+      const gid = sp?.groupId || sp?.group?.id || '';
+      const gname = sp?.group?.name || '';
+      if (!byGroup.has(gid)) {
+        byGroup.set(gid, { groupName: gname, sortOrder: sp?.group?.sortOrder ?? 0, items: [] });
+      }
+      byGroup.get(gid).items.push(sp);
+    }
+    return Array.from(byGroup.entries())
+      .sort(
+        (a, b) =>
+          (a[1].sortOrder ?? 0) - (b[1].sortOrder ?? 0) ||
+          (a[1].groupName || '').localeCompare(b[1].groupName || '')
+      )
+      .map(([gid, data]) => ({ groupId: gid, groupName: data.groupName, items: data.items }));
+  }, [menuSubproducts]);
+
   const inWaitingOrders = (orders || []).filter((o) => o?.status === 'in_waiting');
   const inPlanningOrders = (orders || []).filter((o) => o?.status === 'in_planning');
-  const activeProcessingOrders =
-    processingSubTab === 'in_waiting'
-      ? inWaitingOrders
-      : processingSubTab === 'in_planning'
-        ? inPlanningOrders
-        : processingOrders;
+  const activeProcessingOrders = processingSubTab === 'in_planning' ? inPlanningOrders : inWaitingOrders;
   const completedOrders = historyOrders || [];
 
   const footerButtons = [
-    { id: 'table', label: t('control.functionButton.tables') || 'Table', icon: 'table-furniture' },
-    { id: 'menu', label: 'Menu', icon: 'silverware-fork-knife' },
-    { id: 'orders', label: t('orders') || 'Orders', icon: 'clipboard-text-outline' },
-    { id: 'processing', label: t('processing') || 'Processing', icon: 'progress-clock' },
-    { id: 'complete', label: t('complete') || 'Complete', icon: 'check-decagram-outline' },
+    { id: 'table', label: t('control.functionButton.tables'), icon: 'table-furniture' },
+    { id: 'menu', label: t('handheldMenuTab'), icon: 'silverware-fork-knife' },
+    { id: 'orders', label: t('orders'), icon: 'clipboard-text-outline' },
+    { id: 'processing', label: t('processing'), icon: 'progress-clock' },
+    { id: 'complete', label: t('complete'), icon: 'check-decagram-outline' },
   ];
-  const currentTableName =
-    selectedTableLabel ||
-    selectedTable?.name ||
-    selectedTable?.label ||
-    currentOrder?.table?.name ||
-    currentOrder?.tableName ||
-    (currentOrder?.tableId ? `#${currentOrder.tableId}` : null);
+  const viewingProcessingHoldOrder =
+    !!focusedOrderId &&
+    currentOrder?.id === focusedOrderId &&
+    (currentOrder?.status === 'in_waiting' || currentOrder?.status === 'in_planning');
+  const currentTableName = viewingProcessingHoldOrder
+    ? null
+    : selectedTableLabel ||
+      selectedTable?.name ||
+      selectedTable?.label ||
+      currentOrder?.table?.name ||
+      currentOrder?.tableName ||
+      (currentOrder?.tableId ? `#${currentOrder.tableId}` : null);
   const headerMeta = [time, user?.label].filter(Boolean).join(' - ');
-  const headerTableMeta = mobileTab === 'orders' ? `${currentTableName || 'No Table'}` : '';
 
   const resolveProductImageUri = useCallback((rawPath) => {
     const raw = String(rawPath || '').trim();
@@ -439,15 +458,18 @@ export default function PosApp() {
   return (
     <View style={mobileLayout.root}>
       <View style={mobileLayout.header}>
-        <View>
-          <Text className="text-pos-text text-lg font-semibold">POS Handheld</Text>
+        <View className="flex-1">
+          <Text className="text-pos-text text-lg font-semibold">{t('handheldAppTitle')}</Text>
           <Text className="text-pos-muted text-xs mt-0.5">
             {`${headerMeta}`}
           </Text>
         </View>
-        <Text className="text-pos-muted text-xl w-full absolute left-0 right-0 text-center font-semibold">
-          {`${headerTableMeta}`}
-        </Text>
+        <Pressable
+          className="h-12 w-12 items-center justify-center rounded-full bg-pos-panel active:bg-green-500"
+          onPress={() => setMobileTab('settings')}
+        >
+          <MaterialCommunityIcons name="cog-outline" size={24} color="#ecf0f1" />
+        </Pressable>
       </View>
 
       <View style={mobileLayout.body}>
@@ -566,6 +588,7 @@ export default function PosApp() {
             selectedTable={selectedTable}
             currentUser={user}
             currentTime={time}
+            tableDisplayName={currentTableName || t('noTable')}
             onOpenTables={handleOpenTables}
             quantityInput={quantityInput}
             setQuantityInput={setQuantityInput}
@@ -593,22 +616,13 @@ export default function PosApp() {
           <ScrollView className="flex-1 p-3">
             <View className="mt-3 flex-row gap-2">
               <Pressable
-                className={`flex-1 rounded-md p-3 active:bg-green-500 ${processingSubTab === 'processing' ? 'bg-green-600' : 'bg-pos-panel'}`}
-                onPress={() => {
-                  setProcessingSubTab('processing');
-                  fetchOrders();
-                }}
-              >
-                <Text className="text-pos-text text-center">Processing</Text>
-              </Pressable>
-              <Pressable
                 className={`flex-1 rounded-md p-3 active:bg-green-500 ${processingSubTab === 'in_waiting' ? 'bg-green-600' : 'bg-pos-panel'}`}
                 onPress={() => {
                   setProcessingSubTab('in_waiting');
                   fetchOrders();
                 }}
               >
-                <Text className="text-pos-text text-center">In Waiting</Text>
+                <Text className="text-pos-text text-center">{t('control.functionButton.inWaiting')}</Text>
               </Pressable>
               <Pressable
                 className={`flex-1 rounded-md p-3 active:bg-green-500 ${processingSubTab === 'in_planning' ? 'bg-green-600' : 'bg-pos-panel'}`}
@@ -617,7 +631,7 @@ export default function PosApp() {
                   fetchOrders();
                 }}
               >
-                <Text className="text-pos-text text-center">In Planning</Text>
+                <Text className="text-pos-text text-center">{t('inPlanning')}</Text>
               </Pressable>
             </View>
             <ScrollView className="mt-3">
@@ -652,6 +666,10 @@ export default function PosApp() {
                       <Pressable
                         className="ml-2 mt-1 h-8 w-8 items-center justify-center rounded-full bg-pos-panel/30"
                         onPress={() => {
+                          // These orders are not table orders; clear any stale table selection so Orders shows No Table (not "Add to table").
+                          setSelectedTable(null);
+                          setSelectedTableLabel(null);
+                          setSelectedRoomName(null);
                           setFocusedOrderId(order.id);
                           setFocusedOrderInitialItemCount(order?.items?.length ?? 0);
                           setMobileTab('orders');
@@ -665,9 +683,9 @@ export default function PosApp() {
                 </Pressable>
               ))}
               {activeProcessingOrders.length === 0 ? (
-                <View className="rounded-md bg-pos-panel p-3 min-h-[600px] max-h-[600px] items-center justify-center">
+                <View className="rounded-md bg-pos-panel p-3 min-h-[74vh] max-h-[74vh] items-center justify-center">
                   <MaterialCommunityIcons name="clipboard-text-off-outline" size={72} color="#95a5a6" />
-                  <Text className="text-pos-muted text-center text-xl mt-4">No orders found.</Text>
+                  <Text className="text-pos-muted text-center text-xl mt-4">{t('handheldNoOrdersFound')}</Text>
                 </View>
               ) : null}
             </ScrollView>
@@ -681,7 +699,7 @@ export default function PosApp() {
                 <View className="flex-row items-center justify-between">
                   <Text className="text-pos-text font-semibold">#{order.id}</Text>
                   <Text className="text-pos-text text-sm mt-2 text-right">
-                    Paid: € {Number(order?.total || 0).toFixed(2)}
+                    {t('handheldPaid')}: € {Number(order?.total || 0).toFixed(2)}
                   </Text>
                 </View>
                 <View className="flex-row items-center justify-between">
@@ -689,12 +707,41 @@ export default function PosApp() {
                     {order?.createdAt ? new Date(order.createdAt).toLocaleString() : ''}
                   </Text>
                   <Text className="text-pos-muted text-xs mt-1">
-                    Table: {order?.table?.name || order?.tableName || order?.table?.label || (order?.tableId ? `#${order.tableId}` : '-')}
+                    {(() => {
+                      const tableLabel = order?.table?.name || order?.tableName || order?.table?.label || (order?.tableId ? `#${order.tableId}` : null);
+                      return tableLabel ? `${t('handheldTablePrefix')}: ${tableLabel}` : t('noTable');
+                    })()}
                   </Text>
                 </View>
               </View>
             ))}
           </ScrollView>
+        ) : null}
+
+        {mobileTab === 'settings' ? (
+          <View className="flex-1 p-4">
+            <Text className="text-pos-text text-xl font-semibold mb-4">{t('settings')}</Text>
+            <View className="rounded-lg bg-pos-panel p-4">
+              <Text className="text-pos-text text-base font-semibold mb-3">{t('language')}</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {(['en', 'nl', 'fr', 'tr']).map((id) => (
+                  <Pressable
+                    key={id}
+                    className={`rounded-md px-3 py-2 ${pendingLang === id ? 'bg-green-600' : 'bg-pos-bg active:bg-green-500'}`}
+                    onPress={() => setPendingLang(id)}
+                  >
+                    <Text className="text-pos-text">{t(`control.languageOption.${id}`)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable
+                className="mt-4 rounded-md bg-green-600 py-3 active:bg-green-500"
+                onPress={() => setLang(pendingLang)}
+              >
+                <Text className="text-center text-white font-semibold">{t('save')}</Text>
+              </Pressable>
+            </View>
+          </View>
         ) : null}
       </View>
 
@@ -720,31 +767,43 @@ export default function PosApp() {
       </View>
 
       <Modal visible={menuSubproductModalOpen} transparent animationType="fade" onRequestClose={closeMenuSubproducts}>
-        <Pressable className="flex-1 justify-end bg-black/40" onPress={closeMenuSubproducts}>
-          <View className="max-h-[70%] rounded-t-xl border border-pos-border bg-pos-panel p-4">
-            <Text className="mb-3 text-pos-text text-base font-semibold">
-              {menuSelectedProduct?.name || ''} - Subproducts
-            </Text>
-            <ScrollView contentContainerStyle={{ paddingBottom: 10 }}>
-              <View className="flex-row flex-wrap justify-between">
-                {menuSubproducts.map((sub) => (
-                  <Pressable
-                    key={`menu-sub-${sub.id}`}
-                    className={`mb-2 min-h-[56px] w-[48%] justify-center rounded-md px-2 ${selectedMenuSubproductIds.has(sub.id) ? 'bg-green-600' : 'bg-pos-bg'
-                      }`}
-                    onPress={() => handleMenuSubproductPress(sub)}
-                  >
-                    <Text className="text-pos-text text-center">{sub.name}</Text>
-                    <Text className="text-white text-center text-xs mt-1">€ {Number(sub.price || 0).toFixed(2)}</Text>
-                  </Pressable>
+        <View className="flex-1">
+          {/* Backdrop only — tapping dimmed area closes; not a parent of the sheet (avoids accidental close on panel taps). */}
+          <Pressable className="absolute inset-0 bg-black/40" onPress={closeMenuSubproducts} />
+          <View className="absolute inset-0 justify-end" pointerEvents="box-none">
+            <View className="max-h-[70%] w-full rounded-t-xl border border-pos-border bg-pos-panel p-4">
+              <Text className="mb-3 text-pos-text text-base font-semibold">
+                {menuSelectedProduct?.name || ''} — {t('handheldSubproductsSuffix')}
+              </Text>
+              <ScrollView contentContainerStyle={{ paddingBottom: 10 }}>
+                {menuSubproductsByGroup.map(({ groupId, groupName, items }) => (
+                  <View key={groupId === '' ? 'ungrouped' : String(groupId)} className="mb-4">
+                    <Text className="mb-2 text-pos-muted text-sm font-semibold">
+                      {groupName || t('control.productSubproducts.withoutGroup')}
+                    </Text>
+                    <View className="flex-row flex-wrap justify-between">
+                      {items.map((sub) => (
+                        <Pressable
+                          key={`menu-sub-${sub.id}`}
+                          className={`mb-2 min-h-[56px] w-[48%] justify-center rounded-md px-2 ${
+                            selectedMenuSubproductIds.has(sub.id) ? 'bg-green-600' : 'bg-pos-bg'
+                          }`}
+                          onPress={() => handleMenuSubproductPress(sub)}
+                        >
+                          <Text className="text-pos-text text-center">{sub.name}</Text>
+                          <Text className="text-white text-center text-xs mt-1">€ {Number(sub.price || 0).toFixed(2)}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
                 ))}
-              </View>
-            </ScrollView>
-            <Pressable className="mt-2 rounded-md bg-green-600 py-2" onPress={closeMenuSubproducts}>
-              <Text className="text-center text-white font-semibold">{t('ok')}</Text>
-            </Pressable>
+              </ScrollView>
+              <Pressable className="mt-2 rounded-md bg-green-600 py-2" onPress={closeMenuSubproducts}>
+                <Text className="text-center text-white font-semibold">{t('ok')}</Text>
+              </Pressable>
+            </View>
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
       <WebordersModalRN

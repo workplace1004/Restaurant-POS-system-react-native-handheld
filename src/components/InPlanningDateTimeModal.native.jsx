@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, Modal, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -10,7 +10,19 @@ const snapMinute = (m) => [0, 15, 30, 45].reduce((prev, curr) => (Math.abs(curr 
  * Calendar flow for In planning (matches web: pick date/time then Save).
  */
 export function InPlanningDateTimeModal({ open, onClose, onSave }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const dateLocale = useMemo(() => {
+    switch (lang) {
+      case 'nl':
+        return 'nl-NL';
+      case 'fr':
+        return 'fr-FR';
+      case 'tr':
+        return 'tr-TR';
+      default:
+        return 'en-GB';
+    }
+  }, [lang]);
   const [dt, setDt] = useState(() => {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), n.getDate(), n.getHours(), snapMinute(n.getMinutes()), 0, 0);
@@ -76,7 +88,7 @@ export function InPlanningDateTimeModal({ open, onClose, onSave }) {
             }}
           >
             <Text className="text-pos-text text-center text-lg">
-              {dt.toLocaleDateString('en-GB')} {dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
+              {dt.toLocaleDateString(dateLocale)} {dt.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', hour12: false })}
             </Text>
           </Pressable>
           {showPicker && Platform.OS === 'ios' ? (

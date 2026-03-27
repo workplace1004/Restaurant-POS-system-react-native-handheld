@@ -147,7 +147,9 @@ export function TablesView({
                     setShowRoomsModal(false);
                   }}
                 >
-                  <Text className="text-pos-text">{room?.name ?? `Room ${idx + 1}`}</Text>
+                  <Text className="text-pos-text">
+                    {room?.name ?? `${t('handheldRoomPrefix')} ${idx + 1}`}
+                  </Text>
                 </Pressable>
               ))}
             </ScrollView>

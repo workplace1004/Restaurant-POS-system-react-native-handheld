@@ -88,7 +88,7 @@ export function LoginScreen({ time, onLogin }) {
     <View className="flex-1 flex-col bg-pos-bg text-pos-text">
       <View className="flex-row items-center justify-between px-6 py-5 border-b border-pos-border">
         <Text className="text-xl font-medium text-pos-text">{time}</Text>
-        <Text className="text-xl font-semibold text-pos-text">RestaurantPOS</Text>
+        <Text className="text-xl font-semibold text-pos-text">{t('tagline')}</Text>
         <View className="w-16" />
       </View>
 

@@ -290,9 +290,11 @@ export function ProductArea({
 
       {showSubproductModal && selectedProduct && (
         <Modal visible transparent animationType="fade" onRequestClose={closeSubproductModal}>
-          <Pressable className="flex-1 bg-black/50 justify-start" onPress={closeSubproductModal}>
+          <View className="flex-1">
+            <Pressable className="absolute inset-0 bg-black/50" onPress={closeSubproductModal} />
+            <View className="absolute inset-0 justify-start pt-8" pointerEvents="box-none">
             <View
-              className="bg-pos-bg rounded-r-xl border-r border-y border-pos-border p-6 mt-8 max-h-[90%]"
+              className="bg-pos-bg rounded-r-xl border-r border-y border-pos-border p-6 max-h-[90%]"
               style={{ width: Math.min(770, Dimensions.get('window').width * 0.9) }}
             >
             <View className="flex-row items-center justify-between mb-4">
@@ -356,7 +358,8 @@ export function ProductArea({
               </Pressable>
             </View>
             </View>
-          </Pressable>
+            </View>
+          </View>
         </Modal>
       )}
     </>
