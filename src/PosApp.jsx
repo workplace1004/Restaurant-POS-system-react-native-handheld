@@ -9,13 +9,9 @@ import { usePos } from './hooks/usePos';
 import { OrderPanel } from './components/OrderPanel';
 import { TablesView } from './components/TablesView';
 import { LoginScreen } from './components/LoginScreen';
+import { ServerConfigScreen } from './screens/ServerConfigScreen';
 import { LoadingSpinner } from './components/LoadingSpinner';
-import {
-  WebordersModalRN,
-  InPlanningModalRN,
-  InWaitingModalRN,
-  CustomersModalRN
-} from './components/OrderModals';
+import { WebordersModalRN, InWaitingModalRN, CustomersModalRN } from './components/OrderModals';
 
 const API = '/api';
 const USER_STORAGE_KEY = 'pos-user';
@@ -104,17 +100,17 @@ export default function PosApp() {
   const [time, setTime] = useState(() => formatPosClock());
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const [ordersModalTab, setOrdersModalTab] = useState('new');
-  const [showInPlanningModal, setShowInPlanningModal] = useState(false);
   const [showInWaitingModal, setShowInWaitingModal] = useState(false);
   const [focusedOrderId, setFocusedOrderId] = useState(null);
   const [focusedOrderInitialItemCount, setFocusedOrderInitialItemCount] = useState(0);
   const [showCustomersModal, setShowCustomersModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showLoginServerConfig, setShowLoginServerConfig] = useState(false);
   const [showSubtotalView, setShowSubtotalView] = useState(false);
   const [subtotalBreaks, setSubtotalBreaks] = useState([]);
   const [quantityInput, setQuantityInput] = useState('');
   const [showInWaitingButton, setShowInWaitingButton] = useState(false);
   const [mobileTab, setMobileTab] = useState('menu');
-  const [processingSubTab, setProcessingSubTab] = useState('in_waiting');
   const [selectedProcessingOrderId, setSelectedProcessingOrderId] = useState(null);
   const [menuStep, setMenuStep] = useState('categories');
   const [menuCategoryId, setMenuCategoryId] = useState(null);
@@ -168,8 +164,6 @@ export default function PosApp() {
     fetchSavedPositioningLayout,
     savedPositioningColorByCategory,
     fetchSavedPositioningColors,
-    savedFunctionButtonsLayout,
-    fetchSavedFunctionButtonsLayout,
     tableLayouts,
     fetchTableLayouts,
     appendSubproductNoteToItem,
@@ -208,6 +202,7 @@ export default function PosApp() {
 
   useEffect(() => {
     refreshDeviceSettings();
+    if (!apiBase) return;
     (async () => {
       try {
         const res = await fetch(`${API}/settings/device-settings`);
@@ -223,9 +218,10 @@ export default function PosApp() {
         /* ignore */
       }
     })();
-  }, [refreshDeviceSettings]);
+  }, [apiBase, refreshDeviceSettings]);
 
   useEffect(() => {
+    if (!apiBase) return;
     fetchCategories();
     fetchOrders();
     fetchWebordersCount();
@@ -234,9 +230,9 @@ export default function PosApp() {
     fetchTables();
     fetchSavedPositioningLayout();
     fetchSavedPositioningColors();
-    fetchSavedFunctionButtonsLayout();
     fetchRoomCount();
   }, [
+    apiBase,
     fetchCategories,
     fetchOrders,
     fetchWebordersCount,
@@ -245,13 +241,13 @@ export default function PosApp() {
     fetchTables,
     fetchSavedPositioningLayout,
     fetchSavedPositioningColors,
-    fetchSavedFunctionButtonsLayout,
     fetchRoomCount
   ]);
 
   useEffect(() => {
-    if (selectedCategoryId) fetchProducts(selectedCategoryId);
-  }, [selectedCategoryId, fetchProducts]);
+    if (!apiBase || !selectedCategoryId) return;
+    fetchProducts(selectedCategoryId);
+  }, [apiBase, selectedCategoryId, fetchProducts]);
 
   useEffect(() => {
     if (!menuCategoryId && Array.isArray(categories) && categories.length > 0) {
@@ -260,18 +256,17 @@ export default function PosApp() {
   }, [categories, menuCategoryId]);
 
   useEffect(() => {
-    if (menuCategoryId) fetchProducts(menuCategoryId);
-  }, [menuCategoryId, fetchProducts]);
+    if (!apiBase || !menuCategoryId) return;
+    fetchProducts(menuCategoryId);
+  }, [apiBase, menuCategoryId, fetchProducts]);
 
   useEffect(() => {
-    if (view === 'pos') {
-      fetchSavedPositioningLayout();
-      fetchSavedPositioningColors();
-      fetchSavedFunctionButtonsLayout();
-      fetchRoomCount();
-      refreshDeviceSettings();
-    }
-  }, [view, fetchSavedPositioningLayout, fetchSavedPositioningColors, fetchSavedFunctionButtonsLayout, fetchRoomCount, refreshDeviceSettings]);
+    if (!apiBase || view !== 'pos') return;
+    fetchSavedPositioningLayout();
+    fetchSavedPositioningColors();
+    fetchRoomCount();
+    refreshDeviceSettings();
+  }, [apiBase, view, fetchSavedPositioningLayout, fetchSavedPositioningColors, fetchRoomCount, refreshDeviceSettings]);
 
   useEffect(() => {
     setSubtotalBreaks([]);
@@ -412,8 +407,7 @@ export default function PosApp() {
   }, [menuSubproducts]);
 
   const inWaitingOrders = (orders || []).filter((o) => o?.status === 'in_waiting');
-  const inPlanningOrders = (orders || []).filter((o) => o?.status === 'in_planning');
-  const activeProcessingOrders = processingSubTab === 'in_planning' ? inPlanningOrders : inWaitingOrders;
+  const activeProcessingOrders = inWaitingOrders;
   const completedOrders = historyOrders || [];
 
   const footerButtons = [
@@ -452,7 +446,15 @@ export default function PosApp() {
   }, [apiBase, socketOrigin]);
 
   if (!user) {
-    return <LoginScreen time={time} onLogin={handleLogin} />;
+    if (showLoginServerConfig) {
+      return <ServerConfigScreen onClose={() => setShowLoginServerConfig(false)} />;
+    }
+    return (
+      <LoginScreen
+        onLogin={handleLogin}
+        onOpenServerConfig={() => setShowLoginServerConfig(true)}
+      />
+    );
   }
 
   return (
@@ -464,12 +466,22 @@ export default function PosApp() {
             {`${headerMeta}`}
           </Text>
         </View>
-        <Pressable
-          className="h-12 w-12 items-center justify-center rounded-full bg-pos-panel active:bg-green-500"
-          onPress={() => setMobileTab('settings')}
-        >
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#ecf0f1" />
-        </Pressable>
+        <View className="flex-row items-center gap-2">
+          <Pressable
+            className="h-12 w-12 items-center justify-center mr-[20px] rounded-full bg-pos-panel active:bg-green-500"
+            onPress={() => setShowLogoutModal(true)}
+            accessibilityLabel={t('logOut')}
+          >
+            <MaterialCommunityIcons name="logout-variant" size={22} color="#ecf0f1" />
+          </Pressable>
+          <Pressable
+            className="h-12 w-12 items-center justify-center rounded-full bg-pos-panel active:bg-green-500"
+            onPress={() => setMobileTab('settings')}
+            accessibilityLabel={t('settings')}
+          >
+            <MaterialCommunityIcons name="cog-outline" size={24} color="#ecf0f1" />
+          </Pressable>
+        </View>
       </View>
 
       <View style={mobileLayout.body}>
@@ -571,7 +583,6 @@ export default function PosApp() {
               setFocusedOrderId(null);
               setFocusedOrderInitialItemCount(0);
             }}
-            showInPlanningButton={Array.isArray(savedFunctionButtonsLayout) && savedFunctionButtonsLayout.includes('geplande-orders')}
             onSaveInWaitingAndReset={async () => {
               setFocusedOrderId(null);
               setFocusedOrderInitialItemCount(0);
@@ -593,18 +604,6 @@ export default function PosApp() {
             quantityInput={quantityInput}
             setQuantityInput={setQuantityInput}
             showInWaitingButton={showInWaitingButton}
-            onOpenInPlanning={() => {
-              setShowInPlanningModal(true);
-              fetchOrders();
-            }}
-            onGoToInPlanningProcessing={async () => {
-              setFocusedOrderId(null);
-              setFocusedOrderInitialItemCount(0);
-              await createOrder(null);
-              setProcessingSubTab('in_planning');
-              setMobileTab('processing');
-              fetchOrders();
-            }}
             onOpenInWaiting={() => {
               setShowInWaitingModal(true);
               fetchOrders();
@@ -613,40 +612,15 @@ export default function PosApp() {
         ) : null}
 
         {mobileTab === 'processing' ? (
-          <ScrollView className="flex-1 p-3">
-            <View className="mt-3 flex-row gap-2">
-              <Pressable
-                className={`flex-1 rounded-md p-3 active:bg-green-500 ${processingSubTab === 'in_waiting' ? 'bg-green-600' : 'bg-pos-panel'}`}
-                onPress={() => {
-                  setProcessingSubTab('in_waiting');
-                  fetchOrders();
-                }}
-              >
-                <Text className="text-pos-text text-center">{t('control.functionButton.inWaiting')}</Text>
-              </Pressable>
-              <Pressable
-                className={`flex-1 rounded-md p-3 active:bg-green-500 ${processingSubTab === 'in_planning' ? 'bg-green-600' : 'bg-pos-panel'}`}
-                onPress={() => {
-                  setProcessingSubTab('in_planning');
-                  fetchOrders();
-                }}
-              >
-                <Text className="text-pos-text text-center">{t('inPlanning')}</Text>
-              </Pressable>
-            </View>
-            <ScrollView className="mt-3">
+          <ScrollView className="flex-1 p-3 mt-3">
               {activeProcessingOrders.map((order) => (
                 <Pressable
-                  key={`proc-${processingSubTab}-${order.id}`}
+                  key={`proc-${order.id}`}
                   className={`mb-2 rounded-md p-3 ${
-                    (processingSubTab === 'in_waiting' || processingSubTab === 'in_planning') && selectedProcessingOrderId === order.id
-                      ? 'bg-green-500'
-                      : 'bg-pos-panel'
+                    selectedProcessingOrderId === order.id ? 'bg-green-500' : 'bg-pos-panel'
                   }`}
                   onPress={() => {
-                    if (processingSubTab === 'in_waiting' || processingSubTab === 'in_planning') {
-                      setSelectedProcessingOrderId((prev) => (prev === order.id ? null : order.id));
-                    }
+                    setSelectedProcessingOrderId((prev) => (prev === order.id ? null : order.id));
                   }}
                 >
                   <View className="flex-row items-start justify-between">
@@ -654,15 +628,13 @@ export default function PosApp() {
                       <Text className="text-pos-text font-semibold">#{order.id}</Text>
                       <Text
                         className={`text-xs mt-1 ${
-                          (processingSubTab === 'in_waiting' || processingSubTab === 'in_planning') && selectedProcessingOrderId === order.id
-                            ? 'text-white'
-                            : 'text-pos-muted'
+                          selectedProcessingOrderId === order.id ? 'text-white' : 'text-pos-muted'
                         }`}
                       >
                         {order.status}
                       </Text>
                     </View>
-                    {(processingSubTab === 'in_waiting' || processingSubTab === 'in_planning') && selectedProcessingOrderId === order.id ? (
+                    {selectedProcessingOrderId === order.id ? (
                       <Pressable
                         className="ml-2 mt-1 h-8 w-8 items-center justify-center rounded-full bg-pos-panel/30"
                         onPress={() => {
@@ -688,7 +660,6 @@ export default function PosApp() {
                   <Text className="text-pos-muted text-center text-xl mt-4">{t('handheldNoOrdersFound')}</Text>
                 </View>
               ) : null}
-            </ScrollView>
           </ScrollView>
         ) : null}
 
@@ -820,24 +791,6 @@ export default function PosApp() {
         }}
         onCancelOrder={removeOrder}
       />
-      <InPlanningModalRN
-        open={showInPlanningModal}
-        onClose={() => setShowInPlanningModal(false)}
-        orders={orders || []}
-        onDeleteOrder={async (orderId) => {
-          await removeOrder(orderId);
-          fetchInPlanningCount();
-        }}
-        onLoadOrder={(orderId) => {
-          setSelectedTable(null);
-          setSelectedTableLabel(null);
-          const ord = (orders || []).find((o) => o.id === orderId);
-          setFocusedOrderId(orderId);
-          setFocusedOrderInitialItemCount(ord?.items?.length ?? 0);
-          setShowInPlanningModal(false);
-        }}
-        onFetchOrders={fetchOrders}
-      />
       <InWaitingModalRN
         open={showInWaitingModal}
         onClose={() => setShowInWaitingModal(false)}
@@ -872,6 +825,32 @@ export default function PosApp() {
         }}
       />
       <CustomersModalRN open={showCustomersModal} onClose={() => setShowCustomersModal(false)} />
+
+      <Modal visible={showLogoutModal} transparent animationType="fade" onRequestClose={() => setShowLogoutModal(false)}>
+        <View className="flex-1 justify-center px-6">
+          <Pressable className="absolute inset-0 bg-black/50" onPress={() => setShowLogoutModal(false)} />
+          <View className="relative rounded-xl border border-pos-border bg-pos-panel p-5">
+            <Text className="mb-5 text-center text-base text-pos-text">{t('logoutConfirm')}</Text>
+            <View className="flex-row gap-3">
+              <Pressable
+                className="min-h-[48px] flex-1 items-center justify-center rounded-lg bg-pos-bg px-3 active:bg-green-500"
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text className="text-center font-medium text-pos-text">{t('cancel')}</Text>
+              </Pressable>
+              <Pressable
+                className="min-h-[48px] flex-1 items-center justify-center rounded-lg bg-green-600 px-3 active:bg-green-500"
+                onPress={() => {
+                  setShowLogoutModal(false);
+                  handleLogout();
+                }}
+              >
+                <Text className="text-center font-semibold text-white">{t('logOut')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

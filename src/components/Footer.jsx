@@ -103,7 +103,7 @@ export function Footer({
     if (id === 'subtotaal') onSubtotalClick?.();
   };
 
-  const functionButtonBaseClass = 'bg-[#4ab3ff] text-pos-text active:bg-[#4ab3ff]/45';
+  const functionButtonBaseClass = 'bg-[#1D4ED8] text-white active:bg-[#1D4ED8]/80';
 
   return (
     <View className="w-full shrink-0 items-center bg-pos-bg px-2 pb-2">
@@ -125,7 +125,7 @@ export function Footer({
               disabled={disabled}
               className={`min-w-0 flex-1 overflow-hidden border-none py-2 ${
                 disabled
-                  ? 'rounded-none bg-[#4ab3ff]/40 text-pos-text opacity-60'
+                  ? 'rounded-none bg-[#1D4ED8]/40 text-white opacity-60'
                   : active
                     ? 'rounded-none bg-pos-surface text-white'
                     : `rounded-sm ${functionButtonBaseClass}`

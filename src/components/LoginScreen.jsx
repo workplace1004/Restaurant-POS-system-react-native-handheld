@@ -1,43 +1,57 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, StyleSheet } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useApi } from '../contexts/ApiContext';
 
-const PAD = [
-  ['7', '8', '9'],
-  ['4', '5', '6'],
-  ['1', '2', '3'],
-  ['Again', '0']
-];
+const LOGIN_LOGO = require('../../assets/image/logo.png');
 
 const TOAST_DURATION_MS = 3500;
+const PIN_DEBOUNCE_MS = 200;
+const PIN_LENGTH = 4;
 
-export function LoginScreen({ time, onLogin }) {
+export function LoginScreen({ onLogin, onOpenServerConfig }) {
   const { t } = useLanguage();
+  const { apiBase } = useApi();
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
-  const scrollRef = useRef(null);
-  const scrollXRef = useRef(0);
+  const [userPickerOpen, setUserPickerOpen] = useState(false);
+  const [pinError, setPinError] = useState(false);
+  const loginInFlight = useRef(false);
 
   useEffect(() => {
+    if (!apiBase) {
+      setUsers([]);
+      setSelectedUser(null);
+      setPinInput('');
+      setLoading(false);
+      return undefined;
+    }
     let cancelled = false;
-    fetch('/api/users')
-      .then((res) => res.json())
-      .then((data) => {
+    setLoading(true);
+    (async () => {
+      try {
+        const res = await fetch('/api/users');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
         if (!cancelled) setUsers(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
-        if (!cancelled) setUsers([]);
-      })
-      .finally(() => {
+      } catch {
+        if (!cancelled) {
+          setUsers([]);
+          setToast({ message: t('handheldLoginBackendUnavailable'), isError: true });
+        }
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [apiBase, t]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -45,126 +59,165 @@ export function LoginScreen({ time, onLogin }) {
     return () => clearTimeout(id);
   }, [toast]);
 
-  const handlePadKey = (key) => {
-    if (key === 'Again') {
-      setPinInput('');
-      return;
-    }
-    if (pinInput.length >= 8) return;
-    setPinInput((prev) => prev + key);
-  };
+  const showToast = useCallback((message, isError = true) => {
+    setToast({ message, isError });
+  }, []);
 
-  const handleSubmit = useCallback(async () => {
-    if (!selectedUser) {
-      setToast(t('loginSelectUser'));
-      return;
-    }
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: selectedUser.id, pin: pinInput })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setToast(data.error || t('loginWrongPin'));
+  const loginWithPin = useCallback(
+    async (user, pin) => {
+      if (!user || loginInFlight.current) return;
+      const digits = String(pin || '').replace(/\D/g, '');
+      if (digits.length !== PIN_LENGTH) return;
+
+      loginInFlight.current = true;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, pin: digits }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showToast(data.error || t('loginWrongPin'));
+          setPinInput('');
+          setPinError(true);
+          return;
+        }
+        setPinError(false);
+        onLogin?.(data);
+      } catch {
+        showToast(t('loginFailed'));
         setPinInput('');
-        return;
+        setPinError(true);
+      } finally {
+        loginInFlight.current = false;
       }
-      onLogin?.(data);
-    } catch {
-      setToast(t('loginFailed'));
-      setPinInput('');
-    }
-  }, [selectedUser, pinInput, onLogin, t]);
+    },
+    [onLogin, showToast, t],
+  );
 
-  const scrollUsers = (dir) => {
-    const step = 200;
-    scrollXRef.current = Math.max(0, scrollXRef.current + (dir === 'left' ? -step : step));
-    scrollRef.current?.scrollTo?.({ x: scrollXRef.current, animated: true });
-  };
+  useEffect(() => {
+    if (!selectedUser) return;
+    const digits = pinInput.replace(/\D/g, '');
+    if (digits.length !== PIN_LENGTH) return;
+
+    const id = setTimeout(() => {
+      void loginWithPin(selectedUser, digits);
+    }, PIN_DEBOUNCE_MS);
+
+    return () => clearTimeout(id);
+  }, [pinInput, selectedUser, loginWithPin]);
+
+  const needsServer = !apiBase;
+  const dropdownLabel = loading
+    ? t('loginLoadingUsers')
+    : needsServer
+      ? t('handheldLoginSetServerFirst')
+      : users.length === 0
+        ? t('loginNoUsers')
+        : selectedUser
+          ? selectedUser.label || selectedUser.name || String(selectedUser.id)
+          : t('loginSelectUser');
+  const canOpenPicker = !needsServer && !loading && users.length > 0;
 
   return (
-    <View className="flex-1 flex-col bg-pos-bg text-pos-text">
-      <View className="flex-row items-center justify-between px-6 py-5 border-b border-pos-border">
-        <Text className="text-xl font-medium text-pos-text">{time}</Text>
-        <Text className="text-xl font-semibold text-pos-text">{t('tagline')}</Text>
-        <View className="w-16" />
-      </View>
-
-      <View className="mt-5 flex-col items-center gap-8 p-6 flex-1">
-        <View className="flex-row items-center gap-4 w-full max-w-3xl">
-          <Pressable className="w-10 h-[170px] rounded-xl bg-pos-panel border-2 border-pos-border justify-center items-center" onPress={() => scrollUsers('left')}>
-            <Text className="text-white text-xl">{'<'}</Text>
-          </Pressable>
-          <ScrollView
-            ref={scrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            className="flex-1 max-h-[180px]"
-            onScroll={(e) => {
-              scrollXRef.current = e.nativeEvent.contentOffset.x;
-            }}
-            scrollEventThrottle={16}
+    <View className="flex-1 flex-col bg-pos-bg" style={{ position: 'relative' }}>
+      <View className="flex-1 items-center mt-20 px-6">
+        <View className="w-full max-w-md">
+          <View className="mb-6 w-full items-center">
+            <ExpoImage
+              source={LOGIN_LOGO}
+              style={{ width: '100%', maxWidth: 550, height: 350 }}
+              contentFit="contain" 
+              accessibilityIgnoresInvertColors
+            />
+          </View>
+          <Pressable
+            className="mb-[20px] w-full min-h-[56px] flex-row items-center justify-center gap-2 rounded-xl border-2 border-pos-border bg-pos-panel px-4 py-4 active:bg-green-500"
+            onPress={() => onOpenServerConfig?.()}
+            accessibilityRole="button"
+            accessibilityLabel={t('handheldLoginConfiguration')}
           >
-            <View className="flex-row gap-4">
-              {loading ? (
-                <Text className="text-pos-muted text-xl">{t('loginLoadingUsers')}</Text>
-              ) : (
-                users.map((user) => (
-                  <Pressable
-                    key={user.id}
-                    className={`min-w-[150px] h-[170px] flex-col items-center p-6 rounded-xl border-2 ${
-                      selectedUser?.id === user.id ? 'bg-blue-600 border-white' : 'bg-pos-panel border-pos-border'
-                    }`}
-                    onPress={() => {
-                      setSelectedUser(user);
-                      setPinInput('');
-                    }}
-                  >
-                    <Text className="text-white text-xl font-semibold mt-auto">{user.label}</Text>
-                  </Pressable>
-                ))
-              )}
-            </View>
-          </ScrollView>
-          <Pressable className="w-10 h-[170px] rounded-xl bg-pos-panel border-2 border-pos-border justify-center items-center" onPress={() => scrollUsers('right')}>
-            <Text className="text-white text-xl">{'>'}</Text>
+            <MaterialCommunityIcons name="cog-outline" size={22} color="#ecf0f1" />
+            <Text className="text-center text-lg font-semibold text-white">{t('handheldLoginConfiguration')}</Text>
           </Pressable>
-        </View>
-
-        <View className="bg-pos-panel rounded-xl p-6 w-full max-w-md mt-6">
-          <View className="mb-4 h-16 items-center justify-center bg-pos-bg rounded">
-            <Text className="text-xl font-mono text-white tracking-widest">
-              {pinInput.replace(/./g, '•') || t('pin')}
-            </Text>
-          </View>
-          <View className="flex-row flex-wrap gap-2 justify-center">
-            {PAD.map((row) =>
-              row.map((key) => (
-                <Pressable
-                  key={key}
-                  className={`py-3 px-4 rounded-lg min-w-[28%] items-center ${key === 'Again' ? 'bg-pos-bg flex-[2]' : 'bg-pos-bg'}`}
-                  onPress={() => handlePadKey(key === 'Again' ? 'Again' : key)}
+          <View className="relative z-10 w-full overflow-visible">
+            <Pressable
+              disabled={!canOpenPicker}
+              className={`relative z-10 w-full min-h-[56px] justify-center rounded-xl border-2 border-pos-border bg-pos-panel px-10 py-4 ${canOpenPicker ? 'active:opacity-90' : 'opacity-60'}`}
+              onPress={() => setUserPickerOpen((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={t('loginSelectUser')}
+            >
+              <Text className="text-center text-lg text-white" numberOfLines={2}>
+                {dropdownLabel}
+              </Text>
+              {canOpenPicker ? (
+                <View className="absolute right-4 top-0 bottom-0 justify-center" pointerEvents="none">
+                  <Text className="text-lg text-white">▾</Text>
+                </View>
+              ) : null}
+            </Pressable>
+            {userPickerOpen && canOpenPicker ? (
+              <View className="absolute left-0 right-0 top-full z-20 mt-2 max-h-[280px] overflow-hidden rounded-xl border-2 border-pos-border bg-pos-panel shadow-md">
+                <ScrollView
+                  className="max-h-[280px]"
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
                 >
-                  <Text className="text-xl text-white font-semibold">{key === 'Again' ? t('again') : key}</Text>
-                </Pressable>
-              ))
-            )}
+                  {users.map((user) => {
+                    const label = user.label || user.name || String(user.id);
+                    return (
+                      <Pressable
+                        key={user.id}
+                        className="border-b border-pos-border/50 px-4 py-4 active:bg-green-600/40"
+                        onPress={() => {
+                          setSelectedUser(user);
+                          setPinInput('');
+                          setPinError(false);
+                          setUserPickerOpen(false);
+                        }}
+                      >
+                        <Text className="text-lg font-medium text-white">{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            ) : null}
           </View>
-          <Pressable className="w-full mt-4 py-3 bg-green-600 rounded-lg items-center" onPress={handleSubmit}>
-            <Text className="text-white text-xl font-semibold">{t('loginButton')}</Text>
-          </Pressable>
+
+          <TextInput
+            value={pinInput}
+            onChangeText={(text) => {
+              setPinError(false);
+              setPinInput(text.replace(/\D/g, '').slice(0, PIN_LENGTH));
+            }}
+            editable={!!selectedUser && !loading}
+            secureTextEntry
+            keyboardType="number-pad"
+            maxLength={PIN_LENGTH}
+            placeholder={selectedUser ? '\u2022 \u2022 \u2022 \u2022' : ''}
+            placeholderTextColor="#7f8c8d"
+            className={`mt-4 w-full rounded-xl border-2 bg-pos-panel px-4 py-4 text-center text-2xl font-mono text-white ${pinError ? 'border-red-500' : 'border-pos-border'} ${!selectedUser ? 'opacity-50' : ''}`}
+            style={{ letterSpacing: 14 }}
+            accessibilityLabel={t('pin')}
+          />
         </View>
       </View>
 
-      <Modal visible={!!toast} transparent animationType="fade">
-        <Pressable className="flex-1 justify-start items-end p-8 pt-16" onPress={() => setToast(null)}>
-          <View className="bg-gray-900 rounded-2xl p-4 max-w-[320px] border border-white/10">
-            <Text className="text-white text-lg">{toast}</Text>
+      {toast ? (
+        <View pointerEvents="box-none" style={[StyleSheet.absoluteFillObject, { zIndex: 100 }]}>
+          <View className="absolute left-0 right-0 top-14 items-center px-4" pointerEvents="box-none">
+            <Pressable
+              className={`max-w-[90%] rounded-xl border px-4 py-3 shadow-lg ${toast.isError ? 'border-rose-600 bg-rose-500' : 'border-white/10 bg-gray-900'}`}
+              onPress={() => setToast(null)}
+            >
+              <Text className="text-center text-base text-white">{toast.message}</Text>
+            </Pressable>
           </View>
-        </Pressable>
-      </Modal>
+        </View>
+      ) : null}
     </View>
   );
 }

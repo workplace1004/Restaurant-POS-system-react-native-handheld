@@ -2,10 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Modal, TextInput, StyleSheet, ActivityIndicator, Dimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
-import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../contexts/LanguageContext';
 import { InWaitingNameModal } from './InWaitingNameModal.native';
-import { InPlanningDateTimeModal } from './InPlanningDateTimeModal.native';
 
 const KEYPAD = [
   ['7', '8', '9'],
@@ -30,49 +28,9 @@ const TABLE_LAST_PAID_AT_STORAGE_KEY = 'pos.tables.lastPaidAtById';
 
 /** Bundled payment tile images (handheld/assets/image/) */
 const PAYMENT_IMG_CASH = require('../../assets/image/cash.png');
+const PAYMENT_IMG_CARD = require('../../assets/image/card.png');
+const PAYMENT_IMG_CASHMATIC = require('../../assets/image/cashmatic.png');
 const PAYMENT_IMG_PAYWORLD = require('../../assets/image/payworld.png');
-
-/** Same artwork as assets/image/card.svg — RN cannot require local SVG without extra Metro config */
-function PaymentCardSvgIcon({ width = 100, height = 66 }) {
-  return (
-    <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={width} height={height} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M2 8.50488H22"
-          stroke="#292D32"
-          strokeWidth={1.5}
-          strokeMiterlimit={10}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <Path
-          d="M6 16.5049H8"
-          stroke="#292D32"
-          strokeWidth={1.5}
-          strokeMiterlimit={10}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <Path
-          d="M10.5 16.5049H14.5"
-          stroke="#292D32"
-          strokeWidth={1.5}
-          strokeMiterlimit={10}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <Path
-          d="M6.44 3.50488H17.55C21.11 3.50488 22 4.38488 22 7.89488V16.1049C22 19.6149 21.11 20.4949 17.56 20.4949H6.44C2.89 20.5049 2 19.6249 2 16.1149V7.89488C2 4.38488 2.89 3.50488 6.44 3.50488Z"
-          stroke="#292D32"
-          strokeWidth={1.5}
-          strokeMiterlimit={10}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </Svg>
-    </View>
-  );
-}
 
 function sumAmountsByIntegration(methods, amounts, integration) {
   return methods
@@ -102,7 +60,7 @@ function allocatePaymentBreakdown(paymentBreakdown, orderTotal, totalOfAllOrders
   return Object.keys(allocated).length > 0 ? { amounts: allocated } : null;
 }
 
-export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, onStatusChange, onCreateOrder, onRemoveAllOrders, tables, showSubtotalView = false, subtotalBreaks = [], onPaymentCompleted, selectedTable = null, currentUser = null, currentTime = '', tableDisplayName = 'No Table', onOpenTables, quantityInput = '', setQuantityInput, showInWaitingButton = false, showInPlanningButton = true, onOpenInPlanning, onOpenInWaiting, onSaveInWaitingAndReset, onGoToInPlanningProcessing = null, focusedOrderId = null, focusedOrderInitialItemCount = 0 }) {
+export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, onStatusChange, onCreateOrder, onRemoveAllOrders, tables, showSubtotalView = false, subtotalBreaks = [], onPaymentCompleted, selectedTable = null, currentUser = null, currentTime = '', tableDisplayName = 'No Table', onOpenTables, quantityInput = '', setQuantityInput, showInWaitingButton = false, onOpenInWaiting, onSaveInWaitingAndReset, focusedOrderId = null, focusedOrderInitialItemCount = 0 }) {
   const { t } = useLanguage();
   const tr = (key, fallback) => {
     const translated = t(key);
@@ -114,10 +72,6 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [showInWaitingNameModal, setShowInWaitingNameModal] = useState(false);
-  const [showPayNowOrLaterModal, setShowPayNowOrLaterModal] = useState(false);
-  const [showInPlanningDateTimeModal, setShowInPlanningDateTimeModal] = useState(false);
-  const [inPlanningCalendarAction, setInPlanningCalendarAction] = useState(null); // 'payNow' | 'inPlanning'
-  const payNowFromInWaitingRef = useRef(false); // When Yes â†’ calendar â†’ Save â†’ payment: after success, set status to in_planning
   const [showPayDifferentlyModal, setShowPayDifferentlyModal] = useState(false);
   const [paymentAmounts, setPaymentAmounts] = useState({});
   const [activePaymentMethods, setActivePaymentMethods] = useState([]);
@@ -315,7 +269,6 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
   const lastSavedBoundary = batchBoundaries.length > 0 ? batchBoundaries[batchBoundaries.length - 1] : 0;
   const isInPlanningOrder = order?.status === 'in_planning';
   const inWaitingButtonDisabled = isInPlanningOrder || (isViewedFromInWaiting && (order?.items?.length ?? 0) <= lastSavedBoundary);
-  const inPlanningButtonDisabled = isInPlanningOrder || !order?.id || !hasOrderItems || (!hasSelectedTable && !isViewedFromInWaiting);
   const normalizeSavedTableOrders = (list) => {
     if (!Array.isArray(list)) return [];
     const byOrderId = new Map();
@@ -654,7 +607,6 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
       setShowPayworldStatusModal(false);
       setPaymentErrorMessage(tr('orderPanel.paymentCancelled', 'Payment cancelled.'));
     }
-    payNowFromInWaitingRef.current = false;
     setShowPayDifferentlyModal(false);
     setPendingSplitCheckout(null);
   };
@@ -804,7 +756,6 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
   };
 
   const resetAfterSuccessfulPayment = () => {
-    payNowFromInWaitingRef.current = false;
     setShowPayDifferentlyModal(false);
     setPaymentAmounts({});
     setActivePaymentMethods([]);
@@ -915,7 +866,6 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
         return sum + (o ? computeOrderTotal(o) : 0);
       }, 0));
 
-      const useInPlanningForPayNow = payNowFromInWaitingRef.current;
       for (const paidOrderId of targetOrderIds) {
         const paidOrder = showSettlementActions
           ? savedOrdersForSelectedTable.find((o) => o?.id === paidOrderId)
@@ -924,8 +874,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
         const orderPaymentBreakdown = paymentBreakdown && settlementTotal > 0
           ? allocatePaymentBreakdown(paymentBreakdown, orderTotal, settlementTotal)
           : paymentBreakdown;
-        const targetStatus = useInPlanningForPayNow && paidOrder?.status === 'in_waiting' ? 'in_planning' : 'paid';
-        await onStatusChange?.(paidOrderId, targetStatus, orderPaymentBreakdown ? { paymentBreakdown: orderPaymentBreakdown } : {});
+        await onStatusChange?.(paidOrderId, 'paid', orderPaymentBreakdown ? { paymentBreakdown: orderPaymentBreakdown } : {});
       }
       await onPaymentCompleted?.(targetOrderIds);
       markSelectedTablePaid();
@@ -960,9 +909,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
           `Receipt printed successfully${printResult?.printerName ? ` on ${printResult.printerName}` : ''}.`,
         ].filter(Boolean).join(' '));
       }
-      if (useInPlanningForPayNow) {
-        onOpenInPlanning?.();
-      } else if (!hasSelectedTable) {
+      if (!hasSelectedTable) {
         await onCreateOrder?.();
       }
       resetAfterSuccessfulPayment();
@@ -1280,7 +1227,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
             disabled={!hasSelection || isSavedTableOrder}
             accessibilityLabel={t('remove')}
           >
-            <MaterialCommunityIcons name="delete-outline" size={20} color="#ffffff" />
+            <MaterialCommunityIcons name="delete-outline" size={20} color="#B91C1C" />
           </Pressable>
           <Pressable
             disabled={isSavedTableOrder}
@@ -1290,7 +1237,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
             onPress={() => setShowDeleteAllModal(true)}
             accessibilityLabel={t('clear')}
           >
-            <MaterialCommunityIcons name="delete-sweep" size={20} color="#ffffff" />
+            <MaterialCommunityIcons name="delete-sweep" size={20} color="#CA8A04" />
           </Pressable>
         </View>
 
@@ -1299,7 +1246,7 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
           <View className="flex flex-row gap-2 py-1 min-h-[59px]">
             <Pressable
               className="flex-1 min-h-[59px] items-center justify-center px-2 bg-pos-surface border-none rounded-md text-pos-text active:bg-green-500"
-              onPress={() => settlementOrder && onStatusChange?.(settlementOrder.id, 'in_planning')}
+              onPress={() => settlementOrder && onStatusChange?.(settlementOrder.id, 'in_waiting')}
             >
               <Text className="text-pos-text text-center text-[12px] leading-tight">{t('interimAccount')}</Text>
             </Pressable>
@@ -1388,33 +1335,15 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
               }
             }}
           >
-            <Text className="text-center text-xl font-medium" numberOfLines={1} ellipsizeMode="tail">
+            <Text className="text-center text-white text-xl font-medium" numberOfLines={1} ellipsizeMode="tail">
               {tr('orderPanel.inWaiting', 'In waiting')}
             </Text>
           </Pressable>
-          {showInPlanningButton ? (
-            <Pressable
-              disabled={inPlanningButtonDisabled}
-              className={`min-w-0 flex-1 items-center justify-center rounded-md border-none py-2 ${!inPlanningButtonDisabled ? 'bg-pos-surface text-pos-text active:bg-green-500' : 'bg-pos-surface text-gray-400 cursor-not-allowed opacity-70'}`}
-              onPress={() => {
-                if (inPlanningButtonDisabled) return;
-                if (isViewedFromInWaiting) {
-                  setShowPayNowOrLaterModal(true);
-                } else {
-                  onStatusChange(order.id, 'in_planning');
-                }
-              }}
-            >
-              <Text className="text-center text-xl font-medium" numberOfLines={1} ellipsizeMode="tail">
-                {t('inPlanning')}
-              </Text>
-            </Pressable>
-          ) : null}
           <Pressable
             disabled={payableTotalForPaymentModal <= 0.009 && !((isViewedFromInWaiting || isViewedFromInPlanning) && hasOrderItems) && !(hasOrderItems && order?.id)}
             className={`min-w-0 flex-1 items-center justify-center rounded-md border-none py-2 ${payableTotalForPaymentModal <= 0.009 && !((isViewedFromInWaiting || isViewedFromInPlanning) && hasOrderItems) && !(hasOrderItems && order?.id)
-              ? 'bg-green-600/50 text-gray-400 cursor-not-allowed opacity-70'
-              : 'bg-green-600 text-white active:bg-green-500'
+              ? 'bg-[#1F8E41]/50 text-gray-200 cursor-not-allowed opacity-70'
+              : 'bg-[#1F8E41] text-white active:opacity-90'
               }`}
             onPress={() => openPayDifferentlyModal()}
           >
@@ -1423,9 +1352,9 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
             </Text>
           </Pressable>
           <Pressable
-            className="shrink-0 items-center justify-center rounded-md border-none bg-[#f0961c]/90 px-3 py-2 active:bg-[#c6a97f]"
+            className="shrink-0 items-center justify-center rounded-md border-none bg-[#B45309] px-3 py-2 active:opacity-90"
           >
-            <Text className="text-center text-xl px-2 font-semibold text-pos-bg">€</Text>
+            <Text className="text-center text-xl px-2 font-semibold text-white">€</Text>
           </Pressable>
           </View>
         </View>
@@ -1459,7 +1388,16 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                       </Text>
                     </View>
                   ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{
+                        flexGrow: 1,
+                        minWidth: '100%',
+                        justifyContent: 'center',
+                        alignItems: 'flex-start',
+                      }}
+                    >
                       <View className="flex flex-row items-start">
                         {activePaymentMethods.map((m) => {
                           const amt = Number(paymentAmounts[m.id]) || 0;
@@ -1475,20 +1413,20 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                                 accessibilityLabel={m.name}
                               >
                                 {integ === 'manual_cash' ? (
-                                  <View className="h-[66px] w-[100px] items-center justify-center rounded bg-amber-50/80">
-                                    <Text className="text-5xl font-bold text-amber-600">€</Text>
+                                  <View className="h-[66px] w-[100px] items-center justify-center overflow-hidden rounded">
+                                    <ExpoImage source={PAYMENT_IMG_CASH} style={{ width: 100, height: 66 }} contentFit="contain" />
                                   </View>
                                 ) : integ === 'cashmatic' ? (
                                   <View className="h-[66px] w-[100px] items-center justify-center overflow-hidden rounded">
-                                    <ExpoImage source={PAYMENT_IMG_CASH} style={{ width: 100, height: 66 }} contentFit="contain" />
+                                    <ExpoImage source={PAYMENT_IMG_CASHMATIC} style={{ width: 100, height: 66 }} contentFit="contain" />
                                   </View>
                                 ) : integ === 'payworld' ? (
                                   <View className="h-[66px] w-[100px] items-center justify-center overflow-hidden rounded">
                                     <ExpoImage source={PAYMENT_IMG_PAYWORLD} style={{ width: 100, height: 66 }} contentFit="contain" />
                                   </View>
                                 ) : integ === 'generic' ? (
-                                  <View className="h-[66px] w-[100px] items-center justify-center">
-                                    <PaymentCardSvgIcon width={100} height={66} />
+                                  <View className="h-[66px] w-[100px] items-center justify-center overflow-hidden rounded">
+                                    <ExpoImage source={PAYMENT_IMG_CARD} style={{ width: 100, height: 66 }} contentFit="contain" />
                                   </View>
                                 ) : (
                                   <Text className="flex items-center justify-center w-[100px] min-h-[66px] px-2 py-3 text-base font-semibold text-center text-blue-900 bg-blue-50/80 rounded leading-tight">
@@ -1496,9 +1434,17 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                                   </Text>
                                 )}
                               </Pressable>
-                              <View className="text-sm font-semibold tabular-nums text-center max-w-[118px]" >
-                                <Text className="block text-xs font-normal text-gray-600 mb-0.5 truncate">{m.name}</Text>
-                                <Text>{formatPaymentAmount(amt)}</Text>
+                              <View className="w-full items-center px-0.5">
+                                <Text
+                                  className="w-full text-center text-sm font-normal mb-0.5"
+                                  numberOfLines={2}
+                                  ellipsizeMode="tail"
+                                >
+                                  {m.name}
+                                </Text>
+                                <Text className="w-full text-center text-sm font-semibold tabular-nums text-gray-800">
+                                  {formatPaymentAmount(amt)}
+                                </Text>
                               </View>
                             </View>
                           );
@@ -1525,17 +1471,25 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
               <View className="w-full flex flex-col items-center justify-center gap-3 pb-3">
                 <Pressable
                   disabled={payModalSplitComplete}
-                  className={`py-2 px-4 w-full max-w-[200px] rounded-lg text-sm font-medium ${payModalSplitComplete ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-800 active:bg-green-500'}`}
+                  className={`py-2 px-4 w-full max-w-[200px] rounded-lg text-sm font-medium ${payModalSplitComplete ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-300 text-gray-800 active:bg-green-500'}`}
                   onPress={handlePayHalfAmount}
                 >
-                  <Text className="text-center text-sm font-medium text-gray-800">{t('halfAmount')}</Text>
+                  <Text
+                    className={`text-center text-sm font-medium ${payModalSplitComplete ? 'text-gray-500' : 'text-gray-800'}`}
+                  >
+                    {t('halfAmount')}
+                  </Text>
                 </Pressable>
                 <Pressable
                   disabled={payModalSplitComplete}
-                  className={`py-2 px-4 w-full max-w-[200px] rounded-lg text-sm font-medium ${payModalSplitComplete ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-800 active:bg-green-500'}`}
+                  className={`py-2 px-4 w-full max-w-[200px] rounded-lg text-sm font-medium ${payModalSplitComplete ? 'bg-gray-200 cursor-not-allowed' : 'bg-gray-300 text-gray-800 active:bg-green-500'}`}
                   onPress={handlePayRemaining}
                 >
-                  <Text className="text-center text-sm font-medium text-gray-800">{t('remainingAmount')}</Text>
+                  <Text
+                    className={`text-center text-sm font-medium ${payModalSplitComplete ? 'text-gray-500' : 'text-gray-800'}`}
+                  >
+                    {t('remainingAmount')}
+                  </Text>
                 </Pressable>
                 <Pressable
                   className="py-2 px-4 bg-gray-300 w-full max-w-[200px] rounded-lg text-gray-800 text-sm font-medium active:bg-green-500"
@@ -1560,12 +1514,14 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
                   activePaymentMethods.length === 0
                 }
                 className={`w-[140px] py-2 px-4 rounded-lg text-sm font-medium ${Math.abs(payModalTotalAssigned - payModalTargetTotal) > 0.009 || payConfirmLoading || paymentMethodsLoading || activePaymentMethods.length === 0
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  ? 'bg-gray-200 cursor-not-allowed'
                   : 'bg-gray-300 text-gray-800 active:bg-green-500'
                   }`}
                 onPress={handleConfirmPayment}
               >
-                <Text className="text-center text-sm font-medium text-gray-800">
+                <Text
+                  className={`text-center text-sm font-medium ${Math.abs(payModalTotalAssigned - payModalTargetTotal) > 0.009 || payConfirmLoading || paymentMethodsLoading || activePaymentMethods.length === 0 ? 'text-gray-500' : 'text-gray-800'}`}
+                >
                   {payConfirmLoading ? t('processing') : t('toConfirm')}
                 </Text>
               </Pressable>
@@ -1934,60 +1890,6 @@ export function OrderPanel({ order, orders, onRemoveItem, onUpdateItemQuantity, 
           </View>
         </View>
       </Modal>
-
-      <Modal visible={showPayNowOrLaterModal} transparent animationType="fade" onRequestClose={() => setShowPayNowOrLaterModal(false)}>
-        <View className="flex-1 items-center justify-center px-5 bg-black/50">
-          <View
-            className="bg-pos-panel rounded-lg shadow-xl px-16 py-8 max-w-2xl w-full mx-4 border border-pos-border"
-          >
-            <Text id="pay-now-or-later-title" className="text-2xl mb-10 font-semibold flex justify-center w-full text-pos-text">
-              {t('payNowOrLater')}
-            </Text>
-            <View className="flex flex-row gap-10 justify-center">
-              <Pressable
-                className="flex-1 py-3 px-10 bg-pos-surface text-pos-text rounded text-xl active:bg-green-500"
-                onPress={() => {
-                  setShowPayNowOrLaterModal(false);
-                  setInPlanningCalendarAction('payNow');
-                  setShowInPlanningDateTimeModal(true);
-                }}
-              >
-                <Text className="text-pos-text text-center text-xl">{t('yes')}</Text>
-              </Pressable>
-              <Pressable
-                className="flex-1 py-3 px-10 bg-pos-surface text-pos-text rounded text-xl active:bg-green-500"
-                onPress={() => {
-                  setShowPayNowOrLaterModal(false);
-                  setInPlanningCalendarAction('inPlanning');
-                  setShowInPlanningDateTimeModal(true);
-                }}
-              >
-                <Text className="text-pos-text text-center text-xl">{t('no')}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <InPlanningDateTimeModal
-        open={showInPlanningDateTimeModal}
-        onClose={() => {
-          setShowInPlanningDateTimeModal(false);
-          setInPlanningCalendarAction(null);
-        }}
-        onSave={(scheduledDate) => {
-          setShowInPlanningDateTimeModal(false);
-          if (inPlanningCalendarAction === 'payNow') {
-            payNowFromInWaitingRef.current = true; // After payment+print success â†’ in_planning
-            setInPlanningCalendarAction(null);
-            openPayDifferentlyModal();
-          } else if (inPlanningCalendarAction === 'inPlanning') {
-            setInPlanningCalendarAction(null);
-            order?.id && onStatusChange?.(order.id, 'in_planning');
-            onGoToInPlanningProcessing?.();
-          }
-        }}
-      />
 
       <InWaitingNameModal
         open={showInWaitingNameModal}
